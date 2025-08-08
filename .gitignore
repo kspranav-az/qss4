@@ -1,5 +1,8 @@
 .idea
-storage
+./storage/*
 uv.lock
 .env.example
 .env*
+*/__pycache__/*
+*/build/*
+*/dist/*
