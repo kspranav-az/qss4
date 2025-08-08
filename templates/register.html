@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block title %}Register - QSS4{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow-lg border-0">
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <i data-feather="user-plus" style="width: 48px; height: 48px;" class="text-primary mb-3"></i>
+                        <h2 class="card-title">Create Account</h2>
+                        <p class="text-muted">Join QSS4 for quantum-safe file storage</p>
+                    </div>
+                    
+                    <form method="POST" id="registerForm">
+                        <div class="mb-3">
+                            <label for="email" class="form-label">
+                                <i data-feather="mail" class="me-1"></i>
+                                Email Address
+                            </label>
+                            <input type="email" class="form-control" id="email" name="email" required
+                                   placeholder="Enter your email" value="{{ request.form.email or '' }}">
+                            <div class="invalid-feedback" id="emailError"></div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="password" class="form-label">
+                                <i data-feather="lock" class="me-1"></i>
+                                Password
+                            </label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="password" name="password" required
+                                       placeholder="Create a strong password">
+                                <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                    <i data-feather="eye" id="togglePasswordIcon"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">
+                                <small id="passwordHelp" class="text-muted">
+                                    Password must be at least 8 characters with uppercase, lowercase, and numbers
+                                </small>
+                            </div>
+                            <div class="invalid-feedback" id="passwordError"></div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="confirm_password" class="form-label">
+                                <i data-feather="check-circle" class="me-1"></i>
+                                Confirm Password
+                            </label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="confirm_password" name="confirm_password" required
+                                       placeholder="Confirm your password">
+                                <button class="btn btn-outline-secondary" type="button" id="toggleConfirmPassword">
+                                    <i data-feather="eye" id="toggleConfirmPasswordIcon"></i>
+                                </button>
+                            </div>
+                            <div class="invalid-feedback" id="confirmPasswordError"></div>
+                        </div>
+                        
+                        <!-- Password Strength Indicator -->
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <small class="text-muted">Password Strength</small>
+                                <small id="strengthText" class="text-muted">Weak</small>
+                            </div>
+                            <div class="progress" style="height: 4px;">
+                                <div class="progress-bar" id="strengthBar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="terms" name="terms" required>
+                                <label class="form-check-label" for="terms">
+                                    I agree to the <a href="#" class="text-primary">Terms of Service</a> 
+                                    and <a href="#" class="text-primary">Privacy Policy</a>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary w-100 mb-3" id="registerButton" disabled>
+                            <span class="button-text">
+                                <i data-feather="user-plus" class="me-2"></i>
+                                Create Account
+                            </span>
+                            <span class="loading-spinner spinner-border spinner-border-sm me-2" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </span>
+                        </button>
+                    </form>
+                    
+                    <div class="text-center">
+                        <p class="mb-0">
+                            Already have an account? 
+                            <a href="{{ url_for('auth.login') }}" class="text-primary text-decoration-none fw-semibold">
+                                Sign in here
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Security Features -->
+            <div class="mt-4">
+                <div class="card border-0 bg-transparent">
+                    <div class="card-body p-3">
+                        <h6 class="text-center mb-3">
+                            <i data-feather="shield" class="me-2"></i>
+                            Your Data is Protected
+                        </h6>
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <small class="text-muted">
+                                    <i data-feather="key" class="d-block mb-1"></i>
+                                    Post-Quantum<br>Encryption
+                                </small>
+                            </div>
+                            <div class="col-4">
+                                <small class="text-muted">
+                                    <i data-feather="database" class="d-block mb-1"></i>
+                                    Blockchain<br>Audit Trail
+                                </small>
+                            </div>
+                            <div class="col-4">
+                                <small class="text-muted">
+                                    <i data-feather="layers" class="d-block mb-1"></i>
+                                    Smart<br>Compression
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    feather.replace();
+    
+    const registerForm = document.getElementById('registerForm');
+    const registerButton = document.getElementById('registerButton');
+    const buttonText = registerButton.querySelector('.button-text');
+    const loadingSpinner = registerButton.querySelector('.loading-spinner');
+    
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirm_password');
+    const termsCheckbox = document.getElementById('terms');
+    
+    const strengthBar = document.getElementById('strengthBar');
+    const strengthText = document.getElementById('strengthText');
+    
+    // Password visibility toggles
+    function setupPasswordToggle(toggleId, inputId, iconId) {
+        const toggle = document.getElementById(toggleId);
+        const input = document.getElementById(inputId);
+        const icon = document.getElementById(iconId);
+        
+        toggle.addEventListener('click', function() {
+            const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+            input.setAttribute('type', type);
+            
+            if (type === 'password') {
+                icon.setAttribute('data-feather', 'eye');
+            } else {
+                icon.setAttribute('data-feather', 'eye-off');
+            }
+            feather.replace();
+        });
+    }
+    
+    setupPasswordToggle('togglePassword', 'password', 'togglePasswordIcon');
+    setupPasswordToggle('toggleConfirmPassword', 'confirm_password', 'toggleConfirmPasswordIcon');
+    
+    // Password strength calculator
+    function calculatePasswordStrength(password) {
+        let score = 0;
+        
+        // Length
+        if (password.length >= 8) score += 1;
+        if (password.length >= 12) score += 1;
+        
+        // Character types
+        if (/[a-z]/.test(password)) score += 1;
+        if (/[A-Z]/.test(password)) score += 1;
+        if (/[0-9]/.test(password)) score += 1;
+        if (/[^A-Za-z0-9]/.test(password)) score += 1;
+        
+        return score;
+    }
+    
+    function updatePasswordStrength() {
+        const password = passwordInput.value;
+        const strength = calculatePasswordStrength(password);
+        
+        let width = 0;
+        let text = 'Weak';
+        let colorClass = 'bg-danger';
+        
+        if (strength >= 6) {
+            width = 100;
+            text = 'Strong';
+            colorClass = 'bg-success';
+        } else if (strength >= 4) {
+            width = 75;
+            text = 'Good';
+            colorClass = 'bg-warning';
+        } else if (strength >= 2) {
+            width = 50;
+            text = 'Fair';
+            colorClass = 'bg-info';
+        } else if (password.length > 0) {
+            width = 25;
+            text = 'Weak';
+            colorClass = 'bg-danger';
+        }
+        
+        strengthBar.style.width = width + '%';
+        strengthBar.className = `progress-bar ${colorClass}`;
+        strengthText.textContent = text;
+        strengthText.className = `text-${colorClass.split('-')[1]}`;
+    }
+    
+    // Form validation
+    function validateEmail(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+    
+    function validatePassword(password) {
+        return password.length >= 8 && 
+               /[A-Z]/.test(password) && 
+               /[a-z]/.test(password) && 
+               /[0-9]/.test(password);
+    }
+    
+    function updateValidation() {
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
+        const termsAccepted = termsCheckbox.checked;
+        
+        // Email validation
+        if (email && !validateEmail(email)) {
+            emailInput.classList.add('is-invalid');
+            document.getElementById('emailError').textContent = 'Please enter a valid email address';
+        } else {
+            emailInput.classList.remove('is-invalid');
+        }
+        
+        // Password validation
+        if (password && !validatePassword(password)) {
+            passwordInput.classList.add('is-invalid');
+            document.getElementById('passwordError').textContent = 
+                'Password must be at least 8 characters with uppercase, lowercase, and numbers';
+        } else {
+            passwordInput.classList.remove('is-invalid');
+        }
+        
+        // Confirm password validation
+        if (confirmPassword && password !== confirmPassword) {
+            confirmPasswordInput.classList.add('is-invalid');
+            document.getElementById('confirmPasswordError').textContent = 'Passwords do not match';
+        } else {
+            confirmPasswordInput.classList.remove('is-invalid');
+        }
+        
+        // Enable/disable submit button
+        const formValid = validateEmail(email) && 
+                         validatePassword(password) && 
+                         password === confirmPassword && 
+                         termsAccepted;
+        
+        registerButton.disabled = !formValid;
+    }
+    
+    // Event listeners
+    emailInput.addEventListener('input', updateValidation);
+    passwordInput.addEventListener('input', function() {
+        updatePasswordStrength();
+        updateValidation();
+    });
+    confirmPasswordInput.addEventListener('input', updateValidation);
+    termsCheckbox.addEventListener('change', updateValidation);
+    
+    // Form submission
+    registerForm.addEventListener('submit', function(e) {
+        registerButton.disabled = true;
+        buttonText.style.display = 'none';
+        loadingSpinner.style.display = 'inline-block';
+        
+        // Reset button if there's an error
+        setTimeout(function() {
+            if (registerButton.disabled) {
+                registerButton.disabled = false;
+                buttonText.style.display = 'inline-block';
+                loadingSpinner.style.display = 'none';
+                updateValidation();
+            }
+        }, 5000);
+    });
+    
+    // Auto-focus on email field
+    emailInput.focus();
+    
+    // Initial validation
+    updateValidation();
+});
+</script>
+{% endblock %}

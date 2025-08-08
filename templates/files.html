@@ -1,0 +1,622 @@
+{% extends "base.html" %}
+
+{% block title %}My Files - QSS4{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Header -->
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div>
+            <h2 class="mb-1">
+                <i data-feather="files" class="me-2"></i>
+                My Files
+            </h2>
+            <p class="text-muted mb-0">Manage your encrypted files and download tokens</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary" onclick="refreshFiles()">
+                <i data-feather="refresh-cw" class="me-2"></i>
+                Refresh
+            </button>
+            <a href="{{ url_for('upload') }}" class="btn btn-primary">
+                <i data-feather="upload" class="me-2"></i>
+                Upload File
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 bg-primary text-white">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center">
+                        <i data-feather="files" class="me-3" style="width: 32px; height: 32px;"></i>
+                        <div>
+                            <h4 class="mb-1" id="totalFiles">-</h4>
+                            <small>Total Files</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 bg-success text-white">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center">
+                        <i data-feather="hard-drive" class="me-3" style="width: 32px; height: 32px;"></i>
+                        <div>
+                            <h4 class="mb-1" id="totalStorage">-</h4>
+                            <small>Storage Used</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 bg-info text-white">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center">
+                        <i data-feather="shield" class="me-3" style="width: 32px; height: 32px;"></i>
+                        <div>
+                            <h4 class="mb-1">100%</h4>
+                            <small>Encrypted</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 bg-warning text-white">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center">
+                        <i data-feather="download" class="me-3" style="width: 32px; height: 32px;"></i>
+                        <div>
+                            <h4 class="mb-1" id="activeTokens">-</h4>
+                            <small>Active Tokens</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Search -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-3">
+            <div class="row g-3 align-items-center">
+                <div class="col-md-4">
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i data-feather="search"></i>
+                        </span>
+                        <input type="text" class="form-control" id="searchInput" 
+                               placeholder="Search files...">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="sortBy">
+                        <option value="created_at">Upload Date</option>
+                        <option value="original_filename">Name</option>
+                        <option value="size">Size</option>
+                        <option value="mime_type">Type</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="sortOrder">
+                        <option value="desc">Newest First</option>
+                        <option value="asc">Oldest First</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="filterType">
+                        <option value="">All Types</option>
+                        <option value="image/">Images</option>
+                        <option value="application/pdf">PDF</option>
+                        <option value="application/">Documents</option>
+                        <option value="text/">Text</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-outline-primary w-100" onclick="applyFilters()">
+                        <i data-feather="filter" class="me-2"></i>
+                        Filter
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Files Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent border-bottom">
+            <h5 class="mb-0">
+                <i data-feather="list" class="me-2"></i>
+                File List
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <!-- Loading State -->
+            <div id="loadingState" class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="text-muted mt-3">Loading your files...</p>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="text-center py-5" style="display: none;">
+                <i data-feather="file-plus" style="width: 64px; height: 64px;" class="text-muted mb-3"></i>
+                <h4 class="text-muted">No Files Found</h4>
+                <p class="text-muted mb-4">Upload your first file to get started with secure storage</p>
+                <a href="{{ url_for('upload') }}" class="btn btn-primary">
+                    <i data-feather="upload" class="me-2"></i>
+                    Upload First File
+                </a>
+            </div>
+
+            <!-- Files Table -->
+            <div id="filesTable" style="display: none;">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>File</th>
+                                <th>Size</th>
+                                <th>Type</th>
+                                <th>Uploaded</th>
+                                <th>Security</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="filesTableBody">
+                            <!-- Files will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="card-footer bg-transparent border-top">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="text-muted small" id="paginationInfo">
+                            Showing 1-10 of 25 files
+                        </div>
+                        <nav>
+                            <ul class="pagination pagination-sm mb-0" id="pagination">
+                                <!-- Pagination will be inserted here -->
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Download Token Modal -->
+<div class="modal fade" id="tokenModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i data-feather="download" class="me-2"></i>
+                    Create Download Token
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="tokenForm">
+                    <input type="hidden" id="tokenFileId" name="file_id">
+                    <div class="mb-3">
+                        <label for="tokenTTL" class="form-label">Token Expiration</label>
+                        <select class="form-select" id="tokenTTL" name="ttl_seconds">
+                            <option value="60">1 minute</option>
+                            <option value="300" selected>5 minutes</option>
+                            <option value="900">15 minutes</option>
+                            <option value="1800">30 minutes</option>
+                            <option value="3600">1 hour</option>
+                        </select>
+                        <div class="form-text">
+                            Tokens are single-use and expire automatically
+                        </div>
+                    </div>
+                    <div class="alert alert-info">
+                        <i data-feather="info" class="me-2"></i>
+                        <strong>Security Notice:</strong> Download tokens are one-time use only. 
+                        Share them securely and they will be invalidated after download.
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="createToken()">
+                    <i data-feather="key" class="me-2"></i>
+                    Create Token
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Token Result Modal -->
+<div class="modal fade" id="tokenResultModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-success">
+                    <i data-feather="check-circle" class="me-2"></i>
+                    Download Token Created
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-success">
+                    <strong>Token created successfully!</strong> Copy the download URL below.
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Download URL</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="downloadUrl" readonly>
+                        <button class="btn btn-outline-secondary" onclick="copyToClipboard('downloadUrl')">
+                            <i data-feather="copy"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="row g-3">
+                    <div class="col-6">
+                        <strong>Expires:</strong><br>
+                        <span id="tokenExpiry" class="text-muted"></span>
+                    </div>
+                    <div class="col-6">
+                        <strong>Uses Remaining:</strong><br>
+                        <span class="badge bg-warning">1 (Single Use)</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="copyToClipboard('downloadUrl')">
+                    <i data-feather="copy" class="me-2"></i>
+                    Copy URL
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    feather.replace();
+    
+    let currentPage = 1;
+    let currentSort = 'created_at';
+    let currentOrder = 'desc';
+    let currentFilter = '';
+    
+    // Load initial data
+    loadStats();
+    loadFiles();
+    
+    // Event listeners
+    document.getElementById('searchInput').addEventListener('input', debounce(applyFilters, 500));
+});
+
+function loadStats() {
+    fetch('/api/v1/files/stats', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.stats) {
+            document.getElementById('totalFiles').textContent = data.stats.total_files;
+            document.getElementById('totalStorage').textContent = formatFileSize(data.stats.total_size_bytes);
+            document.getElementById('activeTokens').textContent = '0'; // TODO: Implement token count
+        }
+    })
+    .catch(error => {
+        console.error('Error loading stats:', error);
+    });
+}
+
+function loadFiles(page = 1) {
+    const params = new URLSearchParams({
+        page: page,
+        per_page: 10,
+        sort: currentSort,
+        order: currentOrder
+    });
+    
+    if (currentFilter) {
+        params.append('type', currentFilter);
+    }
+    
+    const searchTerm = document.getElementById('searchInput').value.trim();
+    if (searchTerm) {
+        params.append('search', searchTerm);
+    }
+    
+    document.getElementById('loadingState').style.display = 'block';
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('filesTable').style.display = 'none';
+    
+    fetch(`/api/v1/files/list?${params}`, {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('loadingState').style.display = 'none';
+        
+        if (data.files && data.files.length > 0) {
+            renderFiles(data.files);
+            renderPagination(data.pagination);
+            document.getElementById('filesTable').style.display = 'block';
+        } else {
+            document.getElementById('emptyState').style.display = 'block';
+        }
+    })
+    .catch(error => {
+        document.getElementById('loadingState').style.display = 'none';
+        console.error('Error loading files:', error);
+        showAlert('error', 'Failed to load files');
+    });
+}
+
+function renderFiles(files) {
+    const tbody = document.getElementById('filesTableBody');
+    tbody.innerHTML = '';
+    
+    files.forEach(file => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                <div class="d-flex align-items-center">
+                    <i data-feather="${getFileIcon(file.mime_type)}" class="me-3 text-primary"></i>
+                    <div>
+                        <div class="fw-semibold">${escapeHtml(file.filename)}</div>
+                        <small class="text-muted">ID: ${file.file_id.substring(0, 8)}...</small>
+                    </div>
+                </div>
+            </td>
+            <td>${formatFileSize(file.size)}</td>
+            <td><span class="badge bg-secondary">${file.mime_type}</span></td>
+            <td>
+                <div>${formatDate(file.created_at)}</div>
+                <small class="text-muted">${formatTime(file.created_at)}</small>
+            </td>
+            <td>
+                <div class="d-flex flex-column gap-1">
+                    <span class="badge bg-success encryption-badge">
+                        <i data-feather="shield" style="width: 12px; height: 12px;" class="me-1"></i>
+                        Encrypted
+                    </span>
+                    ${file.blockchain_txn_id ? 
+                        '<span class="badge bg-info encryption-badge"><i data-feather="database" style="width: 12px; height: 12px;" class="me-1"></i>Blockchain</span>' : 
+                        '<span class="badge bg-warning encryption-badge">Pending</span>'
+                    }
+                </div>
+            </td>
+            <td>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button class="btn btn-outline-primary" onclick="createDownloadToken('${file.file_id}', '${escapeHtml(file.filename)}')" 
+                            title="Create Download Token">
+                        <i data-feather="download"></i>
+                    </button>
+                    <button class="btn btn-outline-info" onclick="viewFileDetails('${file.file_id}')" 
+                            title="View Details">
+                        <i data-feather="info"></i>
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="deleteFile('${file.file_id}', '${escapeHtml(file.filename)}')" 
+                            title="Delete File">
+                        <i data-feather="trash-2"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+    
+    feather.replace();
+}
+
+function renderPagination(pagination) {
+    const paginationInfo = document.getElementById('paginationInfo');
+    const paginationEl = document.getElementById('pagination');
+    
+    const start = (pagination.page - 1) * pagination.per_page + 1;
+    const end = Math.min(start + pagination.per_page - 1, pagination.total);
+    
+    paginationInfo.textContent = `Showing ${start}-${end} of ${pagination.total} files`;
+    
+    paginationEl.innerHTML = '';
+    
+    // Previous button
+    const prevLi = document.createElement('li');
+    prevLi.className = `page-item ${!pagination.has_prev ? 'disabled' : ''}`;
+    prevLi.innerHTML = `<a class="page-link" href="#" onclick="loadFiles(${pagination.page - 1})">Previous</a>`;
+    paginationEl.appendChild(prevLi);
+    
+    // Page numbers
+    for (let i = Math.max(1, pagination.page - 2); i <= Math.min(pagination.pages, pagination.page + 2); i++) {
+        const li = document.createElement('li');
+        li.className = `page-item ${i === pagination.page ? 'active' : ''}`;
+        li.innerHTML = `<a class="page-link" href="#" onclick="loadFiles(${i})">${i}</a>`;
+        paginationEl.appendChild(li);
+    }
+    
+    // Next button
+    const nextLi = document.createElement('li');
+    nextLi.className = `page-item ${!pagination.has_next ? 'disabled' : ''}`;
+    nextLi.innerHTML = `<a class="page-link" href="#" onclick="loadFiles(${pagination.page + 1})">Next</a>`;
+    paginationEl.appendChild(nextLi);
+}
+
+function applyFilters() {
+    currentSort = document.getElementById('sortBy').value;
+    currentOrder = document.getElementById('sortOrder').value;
+    currentFilter = document.getElementById('filterType').value;
+    currentPage = 1;
+    loadFiles(currentPage);
+}
+
+function refreshFiles() {
+    loadStats();
+    loadFiles(currentPage);
+}
+
+function createDownloadToken(fileId, filename) {
+    document.getElementById('tokenFileId').value = fileId;
+    document.querySelector('#tokenModal .modal-title').innerHTML = `
+        <i data-feather="download" class="me-2"></i>
+        Create Download Token for "${filename}"
+    `;
+    feather.replace();
+    new bootstrap.Modal(document.getElementById('tokenModal')).show();
+}
+
+function createToken() {
+    const fileId = document.getElementById('tokenFileId').value;
+    const ttlSeconds = document.getElementById('tokenTTL').value;
+    
+    fetch(`/api/v1/files/${fileId}/token`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        },
+        body: JSON.stringify({
+            ttl_seconds: parseInt(ttlSeconds)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.token) {
+            const downloadUrl = `${window.location.origin}/api/v1/files/${fileId}/download?token=${data.token}`;
+            document.getElementById('downloadUrl').value = downloadUrl;
+            
+            const expiryDate = new Date(Date.now() + data.ttl_seconds * 1000);
+            document.getElementById('tokenExpiry').textContent = expiryDate.toLocaleString();
+            
+            bootstrap.Modal.getInstance(document.getElementById('tokenModal')).hide();
+            new bootstrap.Modal(document.getElementById('tokenResultModal')).show();
+        } else {
+            showAlert('error', data.error || 'Failed to create token');
+        }
+    })
+    .catch(error => {
+        console.error('Error creating token:', error);
+        showAlert('error', 'Failed to create download token');
+    });
+}
+
+function viewFileDetails(fileId) {
+    // TODO: Implement file details modal
+    showAlert('info', 'File details feature coming soon');
+}
+
+function deleteFile(fileId, filename) {
+    if (!confirm(`Are you sure you want to delete "${filename}"? This action cannot be undone.`)) {
+        return;
+    }
+    
+    fetch(`/api/v1/files/${fileId}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (response.ok) {
+            showAlert('success', 'File deleted successfully');
+            refreshFiles();
+        } else {
+            showAlert('error', data.error || 'Failed to delete file');
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting file:', error);
+        showAlert('error', 'Failed to delete file');
+    });
+}
+
+function copyToClipboard(elementId) {
+    const element = document.getElementById(elementId);
+    element.select();
+    element.setSelectionRange(0, 99999);
+    document.execCommand('copy');
+    showAlert('success', 'Copied to clipboard!');
+}
+
+// Utility functions
+function getFileIcon(mimeType) {
+    if (mimeType.startsWith('image/')) return 'image';
+    if (mimeType === 'application/pdf') return 'file-text';
+    if (mimeType.includes('document') || mimeType.includes('word')) return 'file-text';
+    if (mimeType.includes('sheet') || mimeType.includes('excel')) return 'grid';
+    if (mimeType.includes('presentation') || mimeType.includes('powerpoint')) return 'monitor';
+    if (mimeType.startsWith('text/')) return 'file-text';
+    return 'file';
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
+}
+
+function formatTime(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString();
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+function showAlert(type, message) {
+    const alertHtml = `
+        <div class="alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show" role="alert">
+            <i data-feather="${type === 'error' ? 'alert-circle' : type === 'success' ? 'check-circle' : 'info'}" class="me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    // Insert at top of container
+    const container = document.querySelector('.container');
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = alertHtml;
+    container.insertBefore(tempDiv.firstElementChild, container.firstElementChild);
+    feather.replace();
+}
+</script>
+{% endblock %}

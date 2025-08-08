@@ -1,0 +1,432 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Files - QSS4{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <!-- Header -->
+            <div class="d-flex align-items-center justify-content-between mb-4">
+                <div>
+                    <h2 class="mb-1">
+                        <i data-feather="upload" class="me-2"></i>
+                        Upload Files
+                    </h2>
+                    <p class="text-muted mb-0">Secure your files with post-quantum encryption</p>
+                </div>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                    <i data-feather="arrow-left" class="me-2"></i>
+                    Back to Files
+                </a>
+            </div>
+
+            <!-- Upload Form -->
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    <form id="uploadForm" enctype="multipart/form-data">
+                        <!-- File Upload Zone -->
+                        <div class="file-upload-zone" id="uploadZone">
+                            <div class="upload-content">
+                                <i data-feather="upload-cloud" style="width: 64px; height: 64px;" class="text-muted mb-3"></i>
+                                <h4 class="text-muted mb-2">Drop files here or click to browse</h4>
+                                <p class="text-muted mb-3">
+                                    Supports PDF, Office documents, images, and more
+                                    <br>
+                                    <small>Maximum file size: 100MB</small>
+                                </p>
+                                <input type="file" id="fileInput" name="file" class="d-none" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.json,.xml,.jpg,.jpeg,.png,.gif,.svg,.bmp,.webp">
+                                <button type="button" class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                                    <i data-feather="folder" class="me-2"></i>
+                                    Choose File
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Selected File Info -->
+                        <div id="fileInfo" class="mt-4" style="display: none;">
+                            <div class="card bg-light border-0">
+                                <div class="card-body p-3">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <div class="d-flex align-items-center">
+                                            <i data-feather="file" class="me-3 text-primary" id="fileIcon"></i>
+                                            <div>
+                                                <h6 class="mb-1" id="fileName">file.pdf</h6>
+                                                <small class="text-muted" id="fileSize">1.2 MB</small>
+                                                <span class="badge bg-secondary ms-2" id="fileMime">application/pdf</span>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" id="removeFile">
+                                            <i data-feather="x"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Metadata -->
+                        <div class="mt-4">
+                            <h5 class="mb-3">
+                                <i data-feather="tag" class="me-2"></i>
+                                File Metadata (Optional)
+                            </h5>
+                            
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="category" class="form-label">Category</label>
+                                    <select class="form-select" id="category" name="category">
+                                        <option value="">Select category</option>
+                                        <option value="medical">Medical</option>
+                                        <option value="legal">Legal</option>
+                                        <option value="financial">Financial</option>
+                                        <option value="personal">Personal</option>
+                                        <option value="business">Business</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="tags" class="form-label">Tags</label>
+                                    <input type="text" class="form-control" id="tags" name="tags" 
+                                           placeholder="Enter tags separated by commas">
+                                    <div class="form-text">e.g., scan, report, 2025</div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <label for="description" class="form-label">Description</label>
+                                <textarea class="form-control" id="description" name="description" rows="3" 
+                                          placeholder="Optional description of the file"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Security Settings -->
+                        <div class="mt-4">
+                            <h5 class="mb-3">
+                                <i data-feather="shield" class="me-2"></i>
+                                Security Settings
+                            </h5>
+                            
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="encryption" class="form-label">Encryption Algorithm</label>
+                                    <select class="form-select" id="encryption" name="encryption">
+                                        <option value="kyber-aes" selected>Kyber + AES-256-GCM (Recommended)</option>
+                                        <option value="chacha-poly" disabled>ChaCha20-Poly1305 (Future)</option>
+                                    </select>
+                                    <div class="form-text">
+                                        <i data-feather="info" class="me-1"></i>
+                                        Post-quantum cryptography for future-proof security
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="compression" class="form-label">Compression</label>
+                                    <select class="form-select" id="compression" name="compression">
+                                        <option value="zstd" selected>Zstandard (Level 3)</option>
+                                        <option value="brotli" disabled>Brotli (Future)</option>
+                                        <option value="none">No Compression</option>
+                                    </select>
+                                    <div class="form-text">
+                                        <i data-feather="archive" class="me-1"></i>
+                                        Reduces storage size while maintaining security
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Upload Button -->
+                        <div class="mt-4 pt-3 border-top">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="text-muted small">
+                                    <i data-feather="lock" class="me-1"></i>
+                                    Files are encrypted before storage and logged on blockchain
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-lg" id="uploadButton" disabled>
+                                    <span class="button-text">
+                                        <i data-feather="upload" class="me-2"></i>
+                                        Upload & Encrypt
+                                    </span>
+                                    <span class="loading-spinner spinner-border spinner-border-sm me-2" role="status">
+                                        <span class="visually-hidden">Uploading...</span>
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Progress Bar -->
+                    <div class="progress-container mt-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="small text-muted" id="progressText">Preparing upload...</span>
+                            <span class="small text-muted" id="progressPercent">0%</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 id="progressBar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upload Result -->
+            <div id="uploadResult" class="mt-4" style="display: none;">
+                <!-- Success/Error messages will be inserted here -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    feather.replace();
+    
+    const uploadForm = document.getElementById('uploadForm');
+    const uploadZone = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileInfo = document.getElementById('fileInfo');
+    const uploadButton = document.getElementById('uploadButton');
+    const progressContainer = document.querySelector('.progress-container');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const progressPercent = document.getElementById('progressPercent');
+    const uploadResult = document.getElementById('uploadResult');
+    
+    let selectedFile = null;
+    
+    // File input change handler
+    fileInput.addEventListener('change', function(e) {
+        handleFileSelection(e.target.files[0]);
+    });
+    
+    // Drag and drop handlers
+    uploadZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadZone.classList.add('drag-over');
+    });
+    
+    uploadZone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        uploadZone.classList.remove('drag-over');
+    });
+    
+    uploadZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadZone.classList.remove('drag-over');
+        handleFileSelection(e.dataTransfer.files[0]);
+    });
+    
+    // Click to browse
+    uploadZone.addEventListener('click', function(e) {
+        if (e.target === uploadZone || e.target.closest('.upload-content')) {
+            fileInput.click();
+        }
+    });
+    
+    // Remove file handler
+    document.getElementById('removeFile').addEventListener('click', function() {
+        selectedFile = null;
+        fileInfo.style.display = 'none';
+        fileInput.value = '';
+        uploadButton.disabled = true;
+        uploadResult.style.display = 'none';
+    });
+    
+    function handleFileSelection(file) {
+        if (!file) return;
+        
+        // Validate file size (100MB max)
+        const maxSize = 100 * 1024 * 1024;
+        if (file.size > maxSize) {
+            showAlert('error', 'File too large. Maximum size is 100MB.');
+            return;
+        }
+        
+        selectedFile = file;
+        
+        // Update file info display
+        document.getElementById('fileName').textContent = file.name;
+        document.getElementById('fileSize').textContent = formatFileSize(file.size);
+        document.getElementById('fileMime').textContent = file.type || 'unknown';
+        
+        // Update file icon based on type
+        const fileIcon = document.getElementById('fileIcon');
+        if (file.type.startsWith('image/')) {
+            fileIcon.setAttribute('data-feather', 'image');
+        } else if (file.type === 'application/pdf') {
+            fileIcon.setAttribute('data-feather', 'file-text');
+        } else if (file.type.includes('document') || file.type.includes('word')) {
+            fileIcon.setAttribute('data-feather', 'file-text');
+        } else if (file.type.includes('sheet') || file.type.includes('excel')) {
+            fileIcon.setAttribute('data-feather', 'grid');
+        } else {
+            fileIcon.setAttribute('data-feather', 'file');
+        }
+        feather.replace();
+        
+        fileInfo.style.display = 'block';
+        uploadButton.disabled = false;
+        uploadResult.style.display = 'none';
+    }
+    
+    // Form submission
+    uploadForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        if (!selectedFile) {
+            showAlert('error', 'Please select a file to upload.');
+            return;
+        }
+        
+        // Prepare form data
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        
+        // Add metadata
+        const metadata = {
+            category: document.getElementById('category').value,
+            tags: document.getElementById('tags').value.split(',').map(tag => tag.trim()).filter(tag => tag),
+            description: document.getElementById('description').value,
+            encryption: document.getElementById('encryption').value,
+            compression: document.getElementById('compression').value
+        };
+        formData.append('metadata', JSON.stringify(metadata));
+        
+        // Show progress
+        showProgress();
+        
+        // Upload file
+        const xhr = new XMLHttpRequest();
+        
+        xhr.upload.addEventListener('progress', function(e) {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                updateProgress(percent, 'Uploading...');
+            }
+        });
+        
+        xhr.addEventListener('load', function() {
+            hideProgress();
+            
+            if (xhr.status === 201) {
+                const response = JSON.parse(xhr.responseText);
+                showUploadSuccess(response.file);
+                resetForm();
+            } else {
+                const error = JSON.parse(xhr.responseText);
+                showAlert('error', error.error || 'Upload failed');
+            }
+        });
+        
+        xhr.addEventListener('error', function() {
+            hideProgress();
+            showAlert('error', 'Network error during upload');
+        });
+        
+        xhr.open('POST', '/api/v1/files/upload');
+        xhr.setRequestHeader('Authorization', 'Bearer ' + localStorage.getItem('access_token'));
+        xhr.send(formData);
+    });
+    
+    function showProgress() {
+        uploadButton.disabled = true;
+        uploadButton.querySelector('.button-text').style.display = 'none';
+        uploadButton.querySelector('.loading-spinner').style.display = 'inline-block';
+        progressContainer.style.display = 'block';
+        updateProgress(0, 'Preparing upload...');
+    }
+    
+    function hideProgress() {
+        uploadButton.disabled = false;
+        uploadButton.querySelector('.button-text').style.display = 'inline-block';
+        uploadButton.querySelector('.loading-spinner').style.display = 'none';
+        progressContainer.style.display = 'none';
+    }
+    
+    function updateProgress(percent, text) {
+        progressBar.style.width = percent + '%';
+        progressText.textContent = text;
+        progressPercent.textContent = percent + '%';
+    }
+    
+    function showUploadSuccess(fileData) {
+        uploadResult.innerHTML = `
+            <div class="card border-success">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <i data-feather="check-circle" class="text-success me-3" style="width: 32px; height: 32px;"></i>
+                        <div>
+                            <h5 class="text-success mb-1">Upload Successful!</h5>
+                            <p class="text-muted mb-0">Your file has been encrypted and stored securely</p>
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <strong>File ID:</strong><br>
+                            <code class="small">${fileData.file_id}</code>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Encryption:</strong><br>
+                            <span class="badge bg-success">${fileData.encryption_algo}</span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>File Hash:</strong><br>
+                            <code class="small file-hash">${fileData.file_hash.substring(0, 32)}...</code>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Blockchain TX:</strong><br>
+                            ${fileData.blockchain_txn_id ? 
+                                `<code class="small blockchain-hash">${fileData.blockchain_txn_id.substring(0, 16)}...</code>` : 
+                                '<span class="text-muted">Pending</span>'
+                            }
+                        </div>
+                    </div>
+                    <div class="mt-3 pt-3 border-top">
+                        <a href="/dashboard" class="btn btn-primary me-2">
+                            <i data-feather="files" class="me-2"></i>
+                            View All Files
+                        </a>
+                        <button type="button" class="btn btn-outline-primary" onclick="location.reload()">
+                            <i data-feather="upload" class="me-2"></i>
+                            Upload Another
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        uploadResult.style.display = 'block';
+        feather.replace();
+    }
+    
+    function showAlert(type, message) {
+        uploadResult.innerHTML = `
+            <div class="alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show" role="alert">
+                <i data-feather="${type === 'error' ? 'alert-circle' : 'info'}" class="me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        uploadResult.style.display = 'block';
+        feather.replace();
+    }
+    
+    function resetForm() {
+        selectedFile = null;
+        fileInfo.style.display = 'none';
+        fileInput.value = '';
+        uploadButton.disabled = true;
+        document.getElementById('category').value = '';
+        document.getElementById('tags').value = '';
+        document.getElementById('description').value = '';
+    }
+    
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+});
+</script>
+{% endblock %}

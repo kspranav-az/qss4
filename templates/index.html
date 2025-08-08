@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+
+{% block title %}QSS4 Quantum Safe Stone - Secure File Storage{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="bg-primary text-white py-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <h1 class="display-4 fw-bold">
+                    <i data-feather="shield" class="me-3"></i>
+                    QSS4 Quantum Safe Stone
+                </h1>
+                <p class="lead mb-4">
+                    Secure your sensitive files with post-quantum cryptography, blockchain audit trails, 
+                    and enterprise-grade security features designed for the future.
+                </p>
+                <div class="d-flex flex-wrap gap-3">
+                    {% if not current_user.is_authenticated %}
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg">
+                        <i data-feather="user-plus" class="me-2"></i>
+                        Get Started
+                    </a>
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light btn-lg">
+                        <i data-feather="log-in" class="me-2"></i>
+                        Login
+                    </a>
+                    {% else %}
+                    <a href="{{ url_for('upload') }}" class="btn btn-light btn-lg">
+                        <i data-feather="upload" class="me-2"></i>
+                        Upload Files
+                    </a>
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-light btn-lg">
+                        <i data-feather="files" class="me-2"></i>
+                        View Files
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-lg-4 text-center">
+                <div class="p-4">
+                    <i data-feather="lock" style="width: 120px; height: 120px;" class="text-light opacity-75"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Features Section -->
+<div class="container my-5">
+    <div class="row text-center mb-5">
+        <div class="col-12">
+            <h2 class="display-6 fw-bold mb-3">Advanced Security Features</h2>
+            <p class="lead text-muted">
+                Built for organizations that demand the highest levels of data protection
+            </p>
+        </div>
+    </div>
+    
+    <div class="row g-4">
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center p-4">
+                    <div class="mb-3">
+                        <i data-feather="key" style="width: 48px; height: 48px;" class="text-primary"></i>
+                    </div>
+                    <h4 class="card-title">Post-Quantum Cryptography</h4>
+                    <p class="card-text text-muted">
+                        Kyber-1024 KEM with AES-256-GCM provides future-proof protection against 
+                        quantum computer attacks.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center p-4">
+                    <div class="mb-3">
+                        <i data-feather="database" style="width: 48px; height: 48px;" class="text-success"></i>
+                    </div>
+                    <h4 class="card-title">Blockchain Audit Trail</h4>
+                    <p class="card-text text-muted">
+                        Immutable audit logs on Polygon blockchain ensure tamper-proof 
+                        evidence of all file operations.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center p-4">
+                    <div class="mb-3">
+                        <i data-feather="layers" style="width: 48px; height: 48px;" class="text-info"></i>
+                    </div>
+                    <h4 class="card-title">Smart Compression</h4>
+                    <p class="card-text text-muted">
+                        Zstandard compression reduces storage costs while maintaining 
+                        fast encryption and retrieval performance.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center p-4">
+                    <div class="mb-3">
+                        <i data-feather="users" style="width: 48px; height: 48px;" class="text-warning"></i>
+                    </div>
+                    <h4 class="card-title">Role-Based Access</h4>
+                    <p class="card-text text-muted">
+                        Granular permissions with admin, manager, and user roles 
+                        for enterprise access control.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center p-4">
+                    <div class="mb-3">
+                        <i data-feather="download" style="width: 48px; height: 48px;" class="text-danger"></i>
+                    </div>
+                    <h4 class="card-title">One-Time Tokens</h4>
+                    <p class="card-text text-muted">
+                        Secure file sharing with time-limited, single-use download 
+                        tokens managed in Redis.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center p-4">
+                    <div class="mb-3">
+                        <i data-feather="terminal" style="width: 48px; height: 48px;" class="text-secondary"></i>
+                    </div>
+                    <h4 class="card-title">CLI Client</h4>
+                    <p class="card-text text-muted">
+                        Cross-platform command-line client for programmatic 
+                        integration and automation workflows.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Technical Specifications -->
+<div class="bg-light py-5">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 mx-auto text-center">
+                <h3 class="display-6 fw-bold mb-4">Technical Specifications</h3>
+                <p class="lead text-muted mb-5">
+                    Built with cutting-edge cryptographic standards and modern security practices
+                </p>
+                
+                <div class="row g-4">
+                    <div class="col-sm-6 col-lg-3">
+                        <div class="text-center">
+                            <h4 class="text-primary fw-bold">ML-KEM-1024</h4>
+                            <p class="text-muted small">Post-Quantum KEM</p>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <div class="text-center">
+                            <h4 class="text-success fw-bold">AES-256-GCM</h4>
+                            <p class="text-muted small">Symmetric Encryption</p>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <div class="text-center">
+                            <h4 class="text-info fw-bold">SHA3-512</h4>
+                            <p class="text-muted small">Cryptographic Hashing</p>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <div class="text-center">
+                            <h4 class="text-warning fw-bold">Zstd Level 3</h4>
+                            <p class="text-muted small">Compression Algorithm</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Call to Action -->
+{% if not current_user.is_authenticated %}
+<div class="container my-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto text-center">
+            <div class="bg-primary text-white rounded-4 p-5">
+                <h3 class="display-6 fw-bold mb-3">Ready to Secure Your Data?</h3>
+                <p class="lead mb-4">
+                    Join organizations worldwide who trust QSS4 for their most sensitive files
+                </p>
+                <div class="d-flex justify-content-center gap-3">
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg">
+                        <i data-feather="user-plus" class="me-2"></i>
+                        Create Account
+                    </a>
+                    <button type="button" class="btn btn-outline-light btn-lg" data-bs-toggle="modal" data-bs-target="#learnMoreModal">
+                        <i data-feather="info" class="me-2"></i>
+                        Learn More
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Learn More Modal -->
+<div class="modal fade" id="learnMoreModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i data-feather="shield" class="me-2"></i>
+                    About QSS4 Security
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <h6><i data-feather="lock" class="me-2 text-primary"></i>Encryption Pipeline</h6>
+                        <ul class="small text-muted">
+                            <li>File validation and security scanning</li>
+                            <li>Zstandard compression for efficiency</li>
+                            <li>Kyber KEM + AES-GCM hybrid encryption</li>
+                            <li>Secure storage with tamper detection</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i data-feather="users" class="me-2 text-success"></i>Access Control</h6>
+                        <ul class="small text-muted">
+                            <li>JWT-based authentication</li>
+                            <li>Role-based permissions (User/Manager/Admin)</li>
+                            <li>Rate limiting and brute force protection</li>
+                            <li>Session management with refresh tokens</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i data-feather="database" class="me-2 text-info"></i>Audit & Compliance</h6>
+                        <ul class="small text-muted">
+                            <li>Immutable blockchain audit trail</li>
+                            <li>Cryptographic proof of file integrity</li>
+                            <li>Detailed access logging and monitoring</li>
+                            <li>Compliance-ready audit reports</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i data-feather="download" class="me-2 text-warning"></i>Secure Sharing</h6>
+                        <ul class="small text-muted">
+                            <li>One-time download tokens</li>
+                            <li>Configurable expiration times</li>
+                            <li>Atomic token validation in Redis</li>
+                            <li>Secure file streaming</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="{{ url_for('auth.register') }}" class="btn btn-primary">
+                    <i data-feather="user-plus" class="me-2"></i>
+                    Get Started
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize any interactive elements
+    feather.replace();
+});
+</script>
+{% endblock %}
