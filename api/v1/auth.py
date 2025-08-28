@@ -184,11 +184,16 @@ def login():
                     "email": user.email,
                     "role": user.role
                 },
-                **tokens
+                "tokens": tokens
             }), 200
         else:
             # For web interface, use Flask-Login
             login_user(user, remember=True)
+            # Store tokens in the session for API calls
+            from flask import session
+            session['access_token'] = tokens['access_token']
+            session['refresh_token'] = tokens['refresh_token']
+            
             flash("Login successful!", 'success')
             next_page = request.args.get('next')
             return redirect(next_page if next_page else url_for('dashboard'))

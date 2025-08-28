@@ -71,6 +71,7 @@ class QSS4Client:
             try:
                 # Try to get stored access token
                 access_token = keyring.get_password("qss4", f"{self.config['user_email']}_access")
+                
                 if access_token:
                     self.session.headers.update({
                         'Authorization': f'Bearer {access_token}'

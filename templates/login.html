@@ -114,19 +114,23 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Form submission with loading state
     loginForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
         // Show loading state
         loginButton.disabled = true;
         buttonText.style.display = 'none';
         loadingSpinner.style.display = 'inline-block';
         
-        // Form will submit normally, but if there's an error, we'll reset the button
-        setTimeout(function() {
-            if (loginButton.disabled) {
-                loginButton.disabled = false;
-                buttonText.style.display = 'inline-block';
-                loadingSpinner.style.display = 'none';
-            }
-        }, 5000);
+        // Submit the form normally (will trigger a page reload)
+        loginForm.submit();
+    });
+    
+    // Error handling for form submission
+    loginForm.addEventListener('formdata', function(e) {
+        // This event will be triggered before the form is submitted
+        const formData = e.formData;
+        // You can modify formData here if needed
+        console.log('Form data:', Object.fromEntries(formData));
     });
     
     // Auto-focus on email field

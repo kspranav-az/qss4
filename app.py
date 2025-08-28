@@ -19,18 +19,22 @@ login_manager = LoginManager()
 
 def create_app():
     """Application factory pattern"""
+    from core.config import settings
+    
     app = Flask(__name__)
     
     # Configuration
-    app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key-change-in-production")
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///qss4.db")
+    app.secret_key = settings.secret_key
+    app.config["SQLALCHEMY_DATABASE_URI"] = settings.database_url
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
         "pool_recycle": 300,
         "pool_pre_ping": True,
     }
-    app.config["JWT_SECRET_KEY"] = os.environ.get("JWT_SECRET_KEY", "jwt-secret-change-in-production")
-    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = 3600  # 1 hour
-    app.config["JWT_REFRESH_TOKEN_EXPIRES"] = 2592000  # 30 days
+    
+    # JWT Configuration
+    app.config["JWT_SECRET_KEY"] = settings.jwt_secret_key
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = settings.jwt_access_token_expires
+    app.config["JWT_REFRESH_TOKEN_EXPIRES"] = settings.jwt_refresh_token_expires
     
     # Proxy fix for production deployment
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)

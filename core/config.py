@@ -4,43 +4,45 @@ from typing import Optional
 
 class Settings(BaseSettings):
     """Application configuration using Pydantic BaseSettings"""
-    
+
+    class Config:
+        extra = 'ignore'
+
+    # --- Values are now hardcoded below ---
+
     # Database
-    database_url: str = os.getenv("DATABASE_URL", "sqlite:///qss4.db")
-    
+    database_url: str = "postgresql://qss4:qss4_password@postgres:5432/qss4"
+
     # Redis
-    redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    
+    redis_url: str = "redis://:redis_password@redis:6739/0"
+
     # Security
-    secret_key: str = os.getenv("SESSION_SECRET", "dev-secret-key-change-in-production")
-    jwt_secret_key: str = os.getenv("JWT_SECRET_KEY", "jwt-secret-change-in-production")
-    jwt_access_token_expires: int = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRES", "3600"))
-    jwt_refresh_token_expires: int = int(os.getenv("JWT_REFRESH_TOKEN_EXPIRES", "2592000"))
-    
+    secret_key: str = "e280dc6679266140a7cc810792cd754bffe7cb7f66e56d320655b9e014ae4dd6"
+    jwt_secret_key: str = "b16a12c19e27e1fcd61d29638fe5e5536b3dc4be4a4608d766a10806cdf54ea8"
+    jwt_access_token_expires: int = 3600
+    jwt_refresh_token_expires: int = 2592000
+
     # Encryption
-    kyber_private_key_path: str = os.getenv("KYBER_PRIVATE_KEY_PATH", "keys/kyber_private.key")
-    kyber_public_key_path: str = os.getenv("KYBER_PUBLIC_KEY_PATH", "keys/kyber_public.key")
-    fernet_key: Optional[str] = os.getenv("FERNET_KEY")
-    
+    kyber_private_key_path: str = "keys/kyber_private.key"
+    kyber_public_key_path: str = "keys/kyber_public.key"
+    fernet_key: str = "g414Y6DmuaxaDjcB7XBqY7SYPFZFOYP5YlYod5Likio="
+
     # Storage
-    storage_backend: str = os.getenv("STORAGE_BACKEND", "local_fs")
-    storage_path: str = os.getenv("STORAGE_PATH", "./storage")
-    max_file_size: int = int(os.getenv("MAX_FILE_SIZE", "104857600"))  # 100MB default
-    
+    storage_backend: str = "local_fs"
+    storage_path: str = "/app/storage"
+    max_file_size: int = 104857600  # 100MB default
+
     # Blockchain
-    polygon_rpc_url: str = os.getenv("POLYGON_RPC_URL", "https://polygon-rpc.com")
+    polygon_rpc_url: str = "https://polygon-rpc.com"
     polygon_private_key: Optional[str] = os.getenv("POLYGON_PRIVATE_KEY")
     audit_contract_address: Optional[str] = os.getenv("AUDIT_CONTRACT_ADDRESS")
-    
+
     # Rate limiting
-    rate_limit_enabled: bool = os.getenv("RATE_LIMIT_ENABLED", "true").lower() == "true"
-    rate_limit_per_minute: int = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
-    
+    rate_limit_enabled: bool = True
+    rate_limit_per_minute: int = 60
+
     # Compression
-    compression_level: int = int(os.getenv("COMPRESSION_LEVEL", "3"))
-    
-    class Config:
-        env_file = ".env"
+    compression_level: int = 3
 
 # Global settings instance
 settings = Settings()

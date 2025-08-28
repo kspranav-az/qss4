@@ -18,12 +18,11 @@ class KeyManager:
         self.key_dir = Path("keys")
         self.key_dir.mkdir(exist_ok=True)
     
-    def _get_fernet_key(self) -> Optional[bytes]:
+    def _get_fernet_key(self) -> bytes:
         """Get Fernet key for config encryption"""
-        key = settings.fernet_key
-        if key:
-            return key.encode() if isinstance(key, str) else key
-        return None
+        # Hardcoded Fernet key for encryption
+        key = "g414Y6DmuaxaDjcB7XBqY7SYPFZFOYP5YlYod5Likio="
+        return key.encode() if isinstance(key, str) else key
     
     def generate_kyber_keypair(self) -> Tuple[bytes, bytes]:
         """Generate new Kyber keypair"""

@@ -15,17 +15,23 @@ class SecurityManager:
         self.fernet_key = self._get_or_create_fernet_key()
         self.cipher_suite = Fernet(self.fernet_key) if self.fernet_key else None
     
-    def _get_or_create_fernet_key(self) -> Optional[bytes]:
-        """Get or create Fernet key for config encryption"""
-        key = os.getenv("FERNET_KEY")
-        if key:
-            return key.encode()
+    def _get_or_create_fernet_key(self) -> bytes:
+        """Get Fernet key for config encryption"""
+        key = "g414Y6DmuaxaDjcB7XBqY7SYPFZFOYP5YlYod5Likio=".strip()
         
-        # Generate new key if not found
-        new_key = Fernet.generate_key()
-        print(f"Generated new Fernet key: {new_key.decode()}")
-        print("Please set FERNET_KEY environment variable with this value")
-        return new_key
+        # Ensure the key is properly padded
+        padding_needed = 4 - (len(key) % 4)
+        if padding_needed < 4:
+            key += '=' * padding_needed
+            
+        # Convert to bytes and validate
+        try:
+            key_bytes = key.encode('ascii')
+            # This will validate the key format
+            Fernet(key_bytes)
+            return key_bytes
+        except Exception as e:
+            raise ValueError(f"Invalid Fernet key: {e}")
     
     def hash_password(self, password: str) -> str:
         """Hash password using Argon2"""

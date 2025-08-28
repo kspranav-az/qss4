@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  qss4-backend:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://qss4:qss4_password@postgres:5432/qss4
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=dev-secret-key-change-in-production
+      - JWT_SECRET_KEY=dev-jwt-secret-key
+      - FERNET_KEY=dev-fernet-key-change-me
+      - STORAGE_PATH=/app/storage
+      - POLYGON_RPC_URL=https://polygon-rpc.com
+      - RATE_LIMIT_ENABLED=true
+      - COMPRESSION_LEVEL=3
+    volumes:
+      - .:/app
+      - ./storage:/app/storage
+      - ./logs:/app/logs
+    depends_on:
+      - postgres
+      - redis
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=qss4
+      - POSTGRES_USER=qss4
+      - POSTGRES_PASSWORD=qss4_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
