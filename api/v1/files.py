@@ -17,6 +17,8 @@ files_bp = Blueprint('files', __name__)
 @files_bp.route('/upload', methods=['POST'])
 @jwt_required()
 @rate_limit(limit=10, window=600, per_user=True)  # 10 uploads per 10 minutes per user
+# In files.py
+
 def upload_file():
     """
     Upload file with validation, compression, encryption, and storage
@@ -29,7 +31,6 @@ def upload_file():
         if not user:
             return jsonify({"error": "User not found"}), 401
         
-        # Check if file is present
         if 'file' not in request.files:
             return jsonify({"error": "No file provided"}), 400
         
@@ -38,27 +39,25 @@ def upload_file():
         if uploaded_file.filename == '':
             return jsonify({"error": "No file selected"}), 400
         
-        # Get metadata if provided
         metadata_str = request.form.get('metadata', '{}')
         try:
             metadata = json.loads(metadata_str) if metadata_str else {}
         except json.JSONDecodeError:
             return jsonify({"error": "Invalid metadata JSON"}), 400
         
-        # Secure filename
         filename = secure_filename(uploaded_file.filename)
         if not filename:
             return jsonify({"error": "Invalid filename"}), 400
         
         current_app.logger.info(f"File upload request: {filename} from user {current_user_id}")
         
-        # Create file stream
-        file_stream = io.BytesIO()
-        uploaded_file.save(file_stream)
-        file_stream.seek(0)
+        # --- START: MODIFIED SECTION ---
+        # Read the entire file content into a bytes object once.
+        file_content = uploaded_file.read()
         
-        # Security validation
-        security_result = security_sandbox.validate_file_security(file_stream, filename)
+        # Security validation: Pass a NEW, independent stream.
+        security_stream = io.BytesIO(file_content)
+        security_result = security_sandbox.validate_file_security(security_stream, filename)
         
         if not security_result["safe"]:
             current_app.logger.warning(f"File security validation failed: {security_result}")
@@ -70,16 +69,22 @@ def upload_file():
         if security_result["warnings"]:
             current_app.logger.info(f"File security warnings: {security_result['warnings']}")
         
-        # Reset stream after validation
-        file_stream.seek(0)
+        # Upload file using file service: Pass another NEW, independent stream.
+        upload_stream = io.BytesIO(file_content)
+        # --- END: MODIFIED SECTION ---
         
-        # Upload file using file service
-        upload_result = file_service.upload_file(
-            file_stream=file_stream,
-            filename=filename,
-            user_id=current_user_id,
-            metadata=metadata
-        )
+        current_app.logger.debug("[UPLOAD] Before calling file_service.upload_file")
+        try:
+            upload_result = file_service.upload_file(
+                file_stream=upload_stream, # Use the new upload_stream
+                filename=filename,
+                user_id=current_user_id,
+                metadata=metadata
+            )
+            current_app.logger.debug("[UPLOAD] After file_service.upload_file")
+        except Exception as e:
+            current_app.logger.error(f"[UPLOAD] Error in file_service.upload_file: {str(e)}", exc_info=True)
+            raise
         
         return jsonify({
             "message": "File uploaded successfully",
@@ -91,9 +96,14 @@ def upload_file():
     except PermissionError as e:
         return jsonify({"error": str(e)}), 403
     except Exception as e:
-        current_app.logger.error(f"File upload error: {e}")
-        return jsonify({"error": f"Upload failed: {str(e)}"}), 500
-
+        import traceback
+        error_trace = traceback.format_exc()
+        current_app.logger.error(f"File upload error: {str(e)}\n{error_trace}")
+        return jsonify({
+            "error": "An error occurred while uploading the file",
+            "details": str(e),
+            "type": type(e).__name__
+        }), 500
 @files_bp.route('/<file_id>/token', methods=['POST'])
 @jwt_required()
 @rate_limit(limit=20, window=300, per_user=True)  # 20 tokens per 5 minutes per user

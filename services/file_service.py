@@ -1,8 +1,12 @@
 import io
+import logging
 import hashlib
 from typing import BinaryIO, Dict, Any, Optional
 from flask import current_app
 from models import FileRecord, AuditLog
+
+# Configure logger
+logger = logging.getLogger(__name__)
 from app import db
 from mineral.files.base_file import create_file_handler
 from mineral.compression.zstd_compressor import ZstdCompressor
@@ -42,110 +46,155 @@ class FileService:
                    metadata: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         Complete file upload pipeline: validate → compress → encrypt → store → log
-        
-        Args:
-            file_stream: Binary stream of file data
-            filename: Original filename
-            user_id: ID of user uploading the file
-            metadata: Optional file metadata
-        
-        Returns:
-            Dictionary with file information and upload results
         """
         try:
-            current_app.logger.info(f"Starting file upload: {filename} for user {user_id}")
+            current_app.logger.info(f"[UPLOAD] Starting file upload: {filename} for user {user_id}")
+            current_app.logger.debug(f"[UPLOAD] File stream info - closed: {getattr(file_stream, 'closed', 'N/A')}, position: {getattr(file_stream, 'tell', lambda: 'N/A')()}")
+
+            # Step 0: Read file into memory
+            try:
+                file_content = file_stream.read()
+                current_app.logger.debug(f"[UPLOAD] Read {len(file_content)} bytes from file stream")
+            except Exception as e:
+                current_app.logger.error(f"[UPLOAD] Error reading file stream: {e}")
+                raise
+
+            # Step 1: Validate
+            try:
+                validation_stream = io.BytesIO(file_content)
+                file_handler = create_file_handler(validation_stream, filename)
+                if not file_handler.validate():
+                    raise ValueError("File validation failed")
+                file_metadata = file_handler.get_metadata()
+                current_app.logger.info(f"[UPLOAD] File validated: {file_metadata}")
+            except Exception as e:
+                current_app.logger.error(f"[UPLOAD] Validation failed: {e}")
+                raise
+
+            # Step 2: Compress
+            input_stream = None
+            compressed_stream = None
             
-            # Step 1: Validate file
-            file_handler = create_file_handler(file_stream, filename)
-            if not file_handler.validate():
-                raise ValueError("File validation failed")
-            
-            file_metadata = file_handler.get_metadata()
-            current_app.logger.info(f"File validated: {file_metadata}")
-            
-            # Step 2: Compress file
-            file_stream.seek(0)
-            compressed_stream = self.compressor.compress_stream(file_stream)
-            
-            # Calculate hash of compressed data
-            compressed_stream.seek(0)
-            compressed_data = compressed_stream.read()
-            file_hash = hashlib.sha3_512(compressed_data).hexdigest()
-            
-            # Reset stream
-            compressed_stream = io.BytesIO(compressed_data)
-            current_app.logger.info(f"File compressed: {len(compressed_data)} bytes")
-            
-            # Step 3: Encrypt file
-            public_key = key_manager.get_public_key()
-            encrypted_stream, kem_ciphertext, aes_nonce = self.encryptor.encrypt_with_public_key(
-                compressed_stream, public_key
-            )
-            
-            # Combine AES nonce with encrypted data for storage
-            encrypted_stream.seek(0)
-            encrypted_data = encrypted_stream.read()
-            
-            # Prepend nonce to encrypted data
-            storage_data = aes_nonce + encrypted_data
-            storage_stream = io.BytesIO(storage_data)
-            
-            current_app.logger.info(f"File encrypted: {len(storage_data)} bytes")
-            
-            # Step 4: Store encrypted file
-            storage_id = self.storage.store(storage_stream, f"{user_id}_{filename}")
-            current_app.logger.info(f"File stored: {storage_id}")
-            
-            # Step 5: Create database record
-            file_record = FileRecord(
-                user_id=user_id,
-                storage_path=storage_id,
-                original_filename=filename,
-                size=file_metadata["size"],
-                mime_type=file_metadata["mime_type"],
-                compression_algo=self.compressor.algorithm_name,
-                encryption_algo=self.encryptor.algorithm_name,
-                kem_ciphertext=kem_ciphertext,
-                file_hash=file_hash,
-                file_metadata=metadata or {}
-            )
-            
-            db.session.add(file_record)
-            db.session.commit()
-            
-            current_app.logger.info(f"Database record created: {file_record.id}")
-            
-            # Step 6: Log to blockchain
-            blockchain_data = {
-                "user_id": user_id,
-                "file_id": file_record.id,
-                "filename": filename,
-                "size": file_metadata["size"],
-                "mime_type": file_metadata["mime_type"],
-                "file_hash": file_hash
-            }
-            
-            txn_id = self.blockchain_logger.log_event("file_upload", blockchain_data)
-            
-            if txn_id:
-                file_record.blockchain_txn_id = txn_id
+            try:
+                # Create a new stream for compression
+                input_stream = io.BytesIO(file_content)
+                current_app.logger.debug("[UPLOAD] Created input stream for compression")
+
+                # Compress the data using streaming
+                compressed_stream = self.compressor.compress_stream(input_stream)
+                current_app.logger.debug("[UPLOAD] Compression completed")
+                
+                # Get the compressed data
+                compressed_data = compressed_stream.read()
+                current_app.logger.info(f"[UPLOAD] File compressed: {len(compressed_data)} bytes")
+                
+                # Create a new stream for the next step
+                compressed_stream = io.BytesIO(compressed_data)
+                
+            except Exception as e:
+                current_app.logger.error(f"[UPLOAD] Compression failed: {e}", exc_info=True)
+                raise
+                
+            finally:
+                # Clean up resources
+                if input_stream and not input_stream.closed:
+                    input_stream.close()
+                # Only close compressed_stream if it's the original stream from compressor
+                # and not the new BytesIO we created after reading the data
+                if (compressed_stream and not compressed_stream.closed and 
+                    'compressed_data' not in locals()):
+                    compressed_stream.close()
+
+            # Step 3: Hash
+            try:
+                file_hash = hashlib.sha3_512(compressed_data).hexdigest()
+                current_app.logger.debug(f"[UPLOAD] Generated file hash: {file_hash[:8]}...")
+            except Exception as e:
+                current_app.logger.error(f"[UPLOAD] Error hashing compressed data: {e}")
+                raise
+
+            # Step 4: Encrypt
+            try:
+                logger.debug("[UPLOAD] Starting file encryption")
+                public_key = key_manager.get_public_key()
+                encrypted_stream, kem_ciphertext, aes_nonce = self.encryptor.encrypt_with_public_key(
+                    io.BytesIO(compressed_data), public_key
+                )
+                encrypted_data = encrypted_stream.read()
+                storage_data = aes_nonce + encrypted_data
+                storage_stream = io.BytesIO(storage_data)
+                logger.info(f"[UPLOAD] File encrypted: {len(storage_data)} bytes")
+            except Exception as e:
+                logger.error(f"[UPLOAD] Encryption failed: {e}")
+                raise
+
+            # Step 5: Store
+            try:
+                storage_id = self.storage.store(storage_stream, f"{user_id}_{filename}")
+                logger.info(f"[UPLOAD] File stored: {storage_id}")
+            except Exception as e:
+                logger.error(f"[UPLOAD] Storage failed: {e}")
+                raise
+
+            # Step 6: Database record
+            try:
+                file_record = FileRecord(
+                    user_id=user_id,
+                    storage_path=storage_id,
+                    original_filename=filename,
+                    size=file_metadata["size"],
+                    mime_type=file_metadata["mime_type"],
+                    compression_algo=self.compressor.algorithm_name,
+                    encryption_algo=self.encryptor.algorithm_name,
+                    kem_ciphertext=kem_ciphertext,
+                    file_hash=file_hash,
+                    file_metadata=metadata or {}
+                )
+                db.session.add(file_record)
                 db.session.commit()
-                current_app.logger.info(f"Blockchain logged: {txn_id}")
-            
-            # Step 7: Create audit log
-            audit_log = AuditLog(
-                event_type="file_upload",
-                table_name="files",
-                row_id=file_record.id,
-                user_id=user_id,
-                txn_id=txn_id,
-                details=blockchain_data
-            )
-            
-            db.session.add(audit_log)
-            db.session.commit()
-            
-            # Return upload results
+                logger.info(f"[UPLOAD] Database record created: {file_record.id}")
+            except Exception as e:
+                logger.error(f"[UPLOAD] Database insert failed: {e}")
+                db.session.rollback()
+                raise
+
+            # Step 7: Blockchain log
+            txn_id = None
+            try:
+                blockchain_data = {
+                    "user_id": user_id,
+                    "file_id": file_record.id,
+                    "filename": filename,
+                    "size": file_metadata["size"],
+                    "mime_type": file_metadata["mime_type"],
+                    "file_hash": file_hash
+                }
+                txn_id = self.blockchain_logger.log_event("file_upload", blockchain_data)
+                if txn_id:
+                    file_record.blockchain_txn_id = txn_id
+                    db.session.commit()
+                    logger.info(f"[UPLOAD] Blockchain logged: {txn_id}")
+            except Exception as e:
+                logger.error(f"[UPLOAD] Blockchain log failed: {e}")
+                db.session.rollback()
+
+            # Step 8: Audit log
+            try:
+                audit_log = AuditLog(
+                    event_type="file_upload",
+                    table_name="files",
+                    row_id=file_record.id,
+                    user_id=user_id,
+                    txn_id=txn_id,
+                    details=blockchain_data
+                )
+                db.session.add(audit_log)
+                db.session.commit()
+            except Exception as e:
+                logger.error(f"[UPLOAD] Audit log failed: {e}")
+                db.session.rollback()
+
+            # Final response
             return {
                 "file_id": file_record.id,
                 "filename": filename,
@@ -158,22 +207,17 @@ class FileService:
                 "blockchain_txn_id": txn_id,
                 "upload_successful": True
             }
-            
+
         except Exception as e:
-            current_app.logger.error(f"File upload failed: {e}")
-            
-            # Rollback database changes
+            logger.error(f"[UPLOAD] File upload failed: {e}")
             db.session.rollback()
-            
-            # Clean up storage if file was stored
             if 'storage_id' in locals():
                 try:
                     self.storage.delete(storage_id)
-                except:
+                except Exception:
                     pass
-            
             raise RuntimeError(f"File upload failed: {e}")
-    
+
     def download_file(self, file_id: str, user_id: str) -> BinaryIO:
         """
         Download and decrypt file

@@ -289,13 +289,14 @@
 
 {% block scripts %}
 <script>
+// Global variables for file management
+let currentPage = 1;
+let currentSort = 'created_at';
+let currentOrder = 'desc';
+let currentFilter = '';
+
 document.addEventListener('DOMContentLoaded', function() {
     feather.replace();
-    
-    let currentPage = 1;
-    let currentSort = 'created_at';
-    let currentOrder = 'desc';
-    let currentFilter = '';
     
     // Load initial data
     loadStats();

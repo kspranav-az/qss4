@@ -12,30 +12,41 @@ class ZstdCompressor(BaseCompressor):
         self.compressor = zstd.ZstdCompressor(level=level)
         self.decompressor = zstd.ZstdDecompressor()
     
+# In zstd_compressor.py
+
     def compress_stream(self, input_stream: BinaryIO) -> BinaryIO:
-        """Compress data from input stream using streaming"""
+        """
+        Compress data from input stream using streaming.
+        
+        Args:
+            input_stream: BinaryIO stream to compress
+            
+        Returns:
+            BinaryIO: Compressed data as a file-like object
+            
+        Raises:
+            RuntimeError: If compression fails
+        """
         try:
-            # Create output buffer
-            output_buffer = io.BytesIO()
+            # Reset input stream position if seekable
+            if hasattr(input_stream, 'seekable') and input_stream.seekable() and input_stream.tell() > 0:
+                input_stream.seek(0)
             
-            # Reset input stream position
-            input_stream.seek(0)
+            # Read all data from input stream
+            input_data = input_stream.read()
             
-            # Use streaming compressor
-            with self.compressor.stream_writer(output_buffer) as writer:
-                while True:
-                    chunk = input_stream.read(8192)  # 8KB chunks
-                    if not chunk:
-                        break
-                    writer.write(chunk)
+            # Compress the data directly
+            compressor = zstd.ZstdCompressor(level=self.level)
+            compressed_bytes = compressor.compress(input_data)
             
-            # Reset output buffer position
-            output_buffer.seek(0)
-            return output_buffer
+            # Create a new BytesIO object with compressed data
+            compressed_data = io.BytesIO(compressed_bytes)
+            
+            return compressed_data
             
         except Exception as e:
             raise RuntimeError(f"Zstd compression failed: {e}")
-    
+
     def decompress_stream(self, compressed_stream: BinaryIO) -> BinaryIO:
         """Decompress data from compressed stream using streaming"""
         try:
