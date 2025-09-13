@@ -1,11 +1,11 @@
 import uuid
 import time
+import secrets
 from typing import Optional, Dict, Any
 from flask import current_app
 from models import DownloadToken, FileRecord
 from app import db
 from core.redis_client import redis_client
-from core.security import security_manager
 
 class DownloadTokenService:
     """Redis-backed one-time download token management with atomic operations"""
@@ -50,7 +50,7 @@ class DownloadTokenService:
                     raise PermissionError("Access denied")
             
             # Generate secure token
-            token = security_manager.generate_secure_token(32)
+            token = secrets.token_urlsafe(32)
             
             # Create token data
             token_data = {

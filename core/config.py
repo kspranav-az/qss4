@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://qss4:qss4_password@postgres:5432/qss4"
 
     # Redis
-    redis_url: str = "redis://:redis_password@redis:6739/0"
+    redis_url: str = "redis://redis:6379/0"
 
     # Security
     secret_key: str = "e280dc6679266140a7cc810792cd754bffe7cb7f66e56d320655b9e014ae4dd6"

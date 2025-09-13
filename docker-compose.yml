@@ -62,9 +62,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: qss4-redis
-    command: redis-server --appendonly yes --requirepass redis_password
-    environment:
-      - REDIS_PASSWORD=redis_password
+    command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
     ports:
@@ -73,7 +71,7 @@ services:
       - qss4-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
