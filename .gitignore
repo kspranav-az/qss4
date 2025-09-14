@@ -1,5 +1,5 @@
 .idea
-./storage/*
+storage/*
 uv.lock
 .env.example
 .env*
@@ -7,3 +7,8 @@ uv.lock
 */build/*
 */dist/*
 /attached_assets
+keys/*
+*.db
+.md
+test_token.json
+venv

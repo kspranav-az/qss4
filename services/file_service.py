@@ -330,7 +330,10 @@ class FileService:
             # Soft delete
             file_record.deleted = True
             db.session.commit()
-            
+
+            # Physically delete the file from storage
+            self.storage_backend.delete(file_record.storage_id)
+
             # Log deletion event
             audit_data = {
                 "user_id": user_id,

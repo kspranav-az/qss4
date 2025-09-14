@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  qss4-backend-test:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: qss4-backend-test
+    environment:
+      FLASK_ENV: testing
+      DATABASE_URL: postgresql://testuser:testpassword@postgres-test:5432/qss4_test_db
+      REDIS_URL: redis://redis-test:6379/1
+      SECRET_KEY: your_test_secret_key
+      JWT_SECRET_KEY: your_test_jwt_secret_key
+      # Add any other test-specific environment variables here
+    ports:
+      - "5001:5000" # Expose on a different port to avoid conflict with main app
+    volumes:
+      - ..:/app
+    depends_on:
+      - postgres-test
+      - redis-test
+    networks:
+      - qss4-test-network
+
+  postgres-test:
+    image: postgres:15-alpine
+    container_name: postgres-test
+    environment:
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpassword
+      POSTGRES_DB: qss4_test_db
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+      - ./scripts/init_test_db.sql:/docker-entrypoint-initdb.d/init_test_db.sql
+    networks:
+      - qss4-test-network
+
+  redis-test:
+    image: redis:7-alpine
+    container_name: redis-test
+    networks:
+      - qss4-test-network
+
+  qss4-benchmark:
+    build:
+      context: ..
+      dockerfile: test/Dockerfile.benchmark
+    volumes:
+      - ..:/app
+    networks:
+      - qss4-test-network
+    depends_on:
+      - qss4-backend-test
+    command: ["pytest", "test_api_benchmarks.py"]
+
+networks:
+  qss4-test-network:
+    driver: bridge
+
+volumes:
+  postgres_test_data:

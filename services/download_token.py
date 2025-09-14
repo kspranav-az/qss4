@@ -64,8 +64,14 @@ class DownloadTokenService:
             
             # Store in Redis with TTL
             redis_key = f"download_token:{token}"
-            if not self.redis.set(redis_key, token_data, ttl=ttl_seconds):
-                raise RuntimeError("Failed to store token in Redis")
+            try:
+                if not self.redis.set(redis_key, token_data, ttl=ttl_seconds):
+                    current_app.logger.error(f"[DOWNLOAD_TOKEN] Failed to store token {token[:8]}... in Redis for file {file_id}")
+                    raise RuntimeError("Failed to store token in Redis")
+                current_app.logger.debug(f"[DOWNLOAD_TOKEN] Token {token[:8]}... stored in Redis with TTL {ttl_seconds}")
+            except Exception as redis_e:
+                current_app.logger.error(f"[DOWNLOAD_TOKEN] Redis operation failed for token {token[:8]}...: {redis_e}", exc_info=True)
+                raise RuntimeError(f"Redis operation failed: {redis_e}") from redis_e
             
             # Optionally store in database for audit
             db_token = DownloadToken(
@@ -75,8 +81,14 @@ class DownloadTokenService:
                 ttl_seconds=ttl_seconds
             )
             
-            db.session.add(db_token)
-            db.session.commit()
+            try:
+                db.session.add(db_token)
+                db.session.commit()
+                current_app.logger.debug(f"[DOWNLOAD_TOKEN] Token {token[:8]}... added to database")
+            except Exception as db_e:
+                current_app.logger.error(f"[DOWNLOAD_TOKEN] Database operation failed for token {token[:8]}...: {db_e}", exc_info=True)
+                db.session.rollback()
+                raise RuntimeError(f"Database operation failed: {db_e}") from db_e
             
             current_app.logger.info(f"Download token created: {token[:8]}... for file {file_id}")
             

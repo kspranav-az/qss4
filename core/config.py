@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     audit_contract_address: Optional[str] = os.getenv("AUDIT_CONTRACT_ADDRESS")
 
     # Rate limiting
-    rate_limit_enabled: bool = True
+    rate_limit_enabled: bool = False
     rate_limit_per_minute: int = 60
 
     # Compression

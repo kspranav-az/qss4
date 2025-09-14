@@ -15,7 +15,7 @@ services:
       - FERNET_KEY=dev-fernet-key-change-me
       - STORAGE_PATH=/app/storage
       - POLYGON_RPC_URL=https://polygon-rpc.com
-      - RATE_LIMIT_ENABLED=true
+      - RATE_LIMIT_ENABLED=false
       - COMPRESSION_LEVEL=3
     volumes:
       - .:/app
