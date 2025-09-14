@@ -1,21 +1,25 @@
+import os
 import pytest
 import requests
 import json
-import os
 import time
 import csv
 from datetime import datetime
+import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import subprocess
 import threading
+import random
 # import shlex
 
 BASE_URL = "http://localhost:5001"
 TEST_USER = "benchmark_user@example.com"
 TEST_PASSWORD = "BenchmarkPassword123"
 TOKEN_FILE = "test/stress_token.json"
-LOG_FILE = "test/stress_test_single_log.csv"
+LOG_FILE = "test/stress_test_parallel_log.csv"
 TARGET_FOLDER = r"E:\TARP\file test dataset" # This folder should contain files for testing
+LOG_LOCK = threading.Lock()
+LOG_BUFFER = [] # Global buffer for log entries
 
 class DockerStatsMonitor:
     def __init__(self, container_name_prefixes, interval=1):
@@ -101,12 +105,22 @@ class DockerStatsMonitor:
 
 # Helper function to log operations to CSV
 def log_operation_to_csv(log_file, data):
-    file_exists = os.path.isfile(log_file)
-    with open(log_file, 'a', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=data.keys())
-        if not file_exists:
-            writer.writeheader()
-        writer.writerow(data)
+    with LOG_LOCK:
+        LOG_BUFFER.append(data)
+
+def flush_log_buffer_to_csv(log_file):
+    with LOG_LOCK:
+        if not LOG_BUFFER:
+            return
+
+        file_exists = os.path.isfile(log_file)
+        with open(log_file, 'a', newline='') as f:
+            fieldnames = LOG_BUFFER[0].keys()
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            if not file_exists:
+                writer.writeheader()
+            writer.writerows(LOG_BUFFER)
+        LOG_BUFFER.clear()
 
 @pytest.fixture(scope="session")
 def jwt_token_stress():
@@ -187,7 +201,6 @@ def get_files_in_folder(folder_path):
     file_details.sort(key=lambda x: -x["size"])
     return file_details
 
-
 @pytest.fixture(scope="module")
 def stress_files_to_process():
     """Fixture to get all files from TARGET_FOLDER, sorted by size."""
@@ -201,49 +214,81 @@ def stress_files_to_process():
         print(f"No files found in {TARGET_FOLDER}. Please add files for testing.")
     return files
 
-@pytest.mark.parametrize("iteration", range(1)) # Run the full cycle once for now
-def test_end_to_end_file_operations_stress(jwt_token_stress, stress_files_to_process, iteration):
-    print(f"DEBUG: Entering test_end_to_end_file_operations_stress for iteration {iteration}")
-    access_token, _, _ = jwt_token_stress
-    print(f"DEBUG: Using access token: {access_token[:30]}...") # Print first 30 chars of token
-    uploaded_file_ids = []
-    uploaded_file_info = [] # To store file_id, original_path, file_type, folder_path
+@pytest.fixture(scope="module")
+def access_token(jwt_token_stress):
+    token, _, _ = jwt_token_stress
+    return token
 
-    if not stress_files_to_process:
-        pytest.skip(f"No files to process in {TARGET_FOLDER}. Skipping stress test.")
-
-    # Initialize Docker Stats Monitor for multiple containers
-    monitor = DockerStatsMonitor(container_name_prefixes=["qss4-backend-test", "postgres-test", "redis-test"], interval=0.5) # Collect stats every 0.5 seconds
+@pytest.fixture(scope="module")
+def monitor():
+    monitor = DockerStatsMonitor(container_name_prefixes=["qss4-backend-test", "postgres-test", "redis-test"], interval=0.5)
     monitor.start()
     time.sleep(1) # Give monitor a moment to start collecting
+    yield monitor
+    monitor.stop()
 
+def run_all_operations(access_token: str, monitor: DockerStatsMonitor, num_parallel_requests: int = 1):
+    print(f"DEBUG: Starting run_all_operations with {num_parallel_requests} parallel requests")
+    files_to_process = get_files_in_folder(TARGET_FOLDER)
+    if not files_to_process:
+        print(f"No PDF files found in {TARGET_FOLDER}. Skipping stress test.")
+        return
+
+    random.shuffle(files_to_process) # Shuffle the files to ensure random processing order
+
+    uploaded_files_info = []
+    downloaded_files_info = []
+
+    # --- Upload Phase (Parallel) ---
+    print("Starting parallel upload phase...")
+    with ThreadPoolExecutor(max_workers=num_parallel_requests) as executor:
+        upload_futures = {
+            executor.submit(_parallel_operation, _perform_upload_and_log, access_token, file_info, monitor, num_parallel_requests):
+            file_info for file_info in files_to_process
+        }
+        for future in as_completed(upload_futures):
+            try:
+                uploaded_files_info.append(future.result())
+            except Exception as e:
+                print(f"Upload failed for {upload_futures[future]['file_name']}: {e}")
+    print("Parallel upload phase completed.")
+
+    # --- Download Phase (Parallel) ---
+    print("Starting parallel download phase...")
+    with ThreadPoolExecutor(max_workers=num_parallel_requests) as executor:
+        download_futures = {
+            executor.submit(_parallel_operation, _perform_download_and_log, access_token, file_info, monitor, num_parallel_requests):
+            file_info for file_info in uploaded_files_info
+        }
+        for future in as_completed(download_futures):
+            try:
+                downloaded_files_info.append(future.result())
+            except Exception as e:
+                print(f"Download failed for {download_futures[future]['file_name']}: {e}")
+    print("Parallel download phase completed.")
+
+    # --- Delete Phase (Parallel) ---
+    print("Starting parallel delete phase...")
+    with ThreadPoolExecutor(max_workers=num_parallel_requests) as executor:
+        delete_futures = {
+            executor.submit(_parallel_operation, _perform_delete_and_log, access_token, file_info, monitor, num_parallel_requests):
+            file_info for file_info in downloaded_files_info
+        }
+        for future in as_completed(delete_futures):
+            try:
+                future.result()
+            except Exception as e:
+                print(f"Delete failed for {delete_futures[future]['file_name']}: {e}")
+    print("Parallel delete phase completed.")
+
+
+@pytest.mark.parametrize("num_parallel_requests", [2, 5, 10 , 12 ])  # Test with 1, 5, 10, 12 15parallel requests
+def test_end_to_end_file_operations_stress(access_token, monitor, num_parallel_requests):
+    print(f"DEBUG: Entering test_end_to_end_file_operations_stress for {num_parallel_requests} parallel requests")
     try:
-        def run_all_operations():
-            # --- Upload Phase ---
-            print(f"Iteration {iteration}: Starting upload phase...")
-            for file_detail in stress_files_to_process:
-                result = _perform_upload_and_log(access_token, file_detail, monitor)
-                if result:
-                    uploaded_file_ids.append(result["file_id"])
-                    uploaded_file_info.append(result)
-            print(f"DEBUG: Upload phase finished. {len(uploaded_file_info)} files uploaded.")
-
-            # --- Download Phase ---
-            print(f"Iteration {iteration}: Starting download phase...")
-            for file_info in uploaded_file_info:
-                _perform_download_and_log(access_token, file_info, monitor)
-
-            # --- Delete Phase ---
-            print(f"Iteration {iteration}: Starting delete phase...")
-            for file_info in uploaded_file_info:
-                _perform_delete_and_log(access_token, file_info, monitor)
-
-        # benchmark(run_all_operations)
-        run_all_operations()
-
-    finally:
-        monitor.stop()
-        print("End-to-end stress test completed.")
+        run_all_operations(access_token, monitor, num_parallel_requests)
+    except Exception as e:
+        pytest.fail(f"Test failed with exception: {e}")
 
 def _perform_upload_and_log(access_token, file_detail, monitor):
     print(f"DEBUG: Starting upload for {file_detail['path']}")
@@ -271,23 +316,24 @@ def _perform_upload_and_log(access_token, file_detail, monitor):
         "file_size_bytes": file_size,
         "file_id": file_id,
         "status": "success",
-        "duration_ms": duration_ms,
+        "duration_ms": duration_ms
     }
+
     for prefix, stats_list in stats_in_range.items():
         avg_cpu = sum([float(s["cpu_perc"].replace('%', '')) for s in stats_list]) / len(stats_list) if stats_list else 0
         avg_mem_perc = sum([float(s["mem_perc"].replace('%', '')) for s in stats_list]) / len(stats_list) if stats_list else 0
         log_data[f"avg_cpu_perc_{prefix}"] = f"{avg_cpu:.2f}%"
         log_data[f"avg_mem_perc_{prefix}"] = f"{avg_mem_perc:.2f}%"
+
     log_operation_to_csv(LOG_FILE, log_data)
-    print(f"Uploaded {file_name} (ID: {file_id}) in {duration_ms:.2f}ms.")
-    print(f"DEBUG: Finished upload for {file_detail['path']}")
+    print(f"Uploaded file {file_name} (ID: {file_id}) in {duration_ms:.2f}ms.")
     return {
         "file_id": file_id,
-        "original_path": file_path,
         "file_name": file_name,
         "file_extension": file_extension,
         "folder_path": relative_folder_path,
-        "file_size": file_size
+        "file_size": file_size,
+        "original_path": file_path
     }
 
 def _perform_download_and_log(access_token, file_info, monitor):
@@ -387,3 +433,49 @@ def _perform_delete_and_log(access_token, file_info, monitor):
     log_operation_to_csv(LOG_FILE, log_data)
     print(f"Deleted file {file_name} (ID: {file_id}) in {duration_ms:.2f}ms.")
     print(f"DEBUG: Finished delete for {file_info['file_name']}")
+
+
+def _parallel_operation(operation_func, access_token, file_info, monitor, num_parallel_requests):
+    """Helper function to perform operations in parallel"""
+    try:
+        start_time = datetime.now()
+        op_result = operation_func(access_token, file_info, monitor)
+        end_time = datetime.now()
+        duration_ms = (end_time - start_time).total_seconds() * 1000
+
+        current_file_info = op_result if operation_func == _perform_upload_and_log and op_result else file_info
+
+        # Log operation
+        log_data = {
+            "timestamp": start_time.isoformat(),
+            "operation_type": operation_func.__name__,
+            "filename": current_file_info.get("file_name", "N/A"),
+            "file_extension": current_file_info.get("file_extension", "N/A"),
+            "folder_path": current_file_info.get("folder_path", "N/A"),
+            "file_size_bytes": current_file_info.get("file_size", 0),
+            "file_id": current_file_info.get("file_id", "N/A"),
+            "status": "success",
+            "duration_ms": duration_ms,
+            "num_parallel_requests": num_parallel_requests
+        }
+
+        # Get Docker stats
+        stats_in_range = monitor.get_stats_in_range(start_time, end_time)
+        for prefix, stats_list in stats_in_range.items():
+            avg_cpu = sum([float(s["cpu_perc"].replace('%', '')) for s in stats_list]) / len(stats_list) if stats_list else 0
+            avg_mem_perc = sum([float(s["mem_perc"].replace('%', '')) for s in stats_list]) / len(stats_list) if stats_list else 0
+            log_data[f"avg_cpu_perc_{prefix}"] = f"{avg_cpu:.2f}%"
+            log_data[f"avg_mem_perc_{prefix}"] = f"{avg_mem_perc:.2f}%"
+
+        log_operation_to_csv(LOG_FILE, log_data)
+        print(f"{operation_func.__name__.capitalize()} file {current_file_info.get('file_name', 'N/A')} (ID: {current_file_info.get('file_id', 'N/A')}) in {duration_ms:.2f}ms.")
+        return current_file_info
+
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        filename_for_error = file_info.get('file_name', 'UNKNOWN_FILE')
+        print(f"Error in {operation_func.__name__} for {filename_for_error}: {str(e)}\n{error_trace}")
+        raise
+
+    # Flush any remaining logs
+    flush_log_buffer_to_csv(LOG_FILE)

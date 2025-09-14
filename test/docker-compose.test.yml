@@ -42,17 +42,6 @@ services:
     networks:
       - qss4-test-network
 
-  qss4-benchmark:
-    build:
-      context: ..
-      dockerfile: test/Dockerfile.benchmark
-    volumes:
-      - ..:/app
-    networks:
-      - qss4-test-network
-    depends_on:
-      - qss4-backend-test
-    command: ["pytest", "test_api_benchmarks.py"]
 
 networks:
   qss4-test-network:

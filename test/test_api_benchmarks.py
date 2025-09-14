@@ -6,7 +6,7 @@ import os
 BASE_URL = "http://localhost:5001"
 TEST_USER = "benchmark_user@example.com"
 TEST_PASSWORD = "BenchmarkPassword123"
-TOKEN_FILE = "test/test_token.json"
+TOKEN_FILE = "test/stress_token.json"
 
 @pytest.fixture(scope="session")
 def jwt_token():

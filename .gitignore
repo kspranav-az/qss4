@@ -12,3 +12,7 @@ keys/*
 .md
 test_token.json
 venv
+*.csv
+*.json
+*__pycache__*
+stress_token.json

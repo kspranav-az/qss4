@@ -82,7 +82,7 @@ class SecuritySandbox:
             file_stream.seek(0)
             
             # Basic size check
-            max_size = 100 * 1024 * 1024  # 100MB
+            max_size = 5000 * 1024 * 1024  # 5000MB
             if len(content) > max_size:
                 result["errors"].append(f"File too large: {len(content)} bytes")
                 return result
