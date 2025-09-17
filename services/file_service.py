@@ -60,7 +60,7 @@ class FileService:
                 file_content = file_stream.read()
                 original_file_size = len(file_content)
                 current_app.logger.debug(f"[UPLOAD] Read {original_file_size} bytes from file stream")
-                self.performance_logger.stop_timer_and_log("read_file_into_memory", file_size_bytes=original_file_size, original_file_size_bytes=original_file_size)
+                self.performance_logger.stop_timer_and_log("read_file_into_memory", file_size_bytes=original_file_size, original_file_size_bytes=original_file_size, function_name="upload_file")
                 self.performance_logger.start_timer()
             except Exception as e:
                 current_app.logger.error(f"[UPLOAD] Error reading file stream: {e}")
@@ -74,7 +74,7 @@ class FileService:
                     raise ValueError("File validation failed")
                 file_metadata = file_handler.get_metadata()
                 current_app.logger.info(f"[UPLOAD] File validated: {file_metadata}")
-                self.performance_logger.stop_timer_and_log("validate", file_size_bytes=original_file_size, original_file_size_bytes=original_file_size)
+                self.performance_logger.stop_timer_and_log("validate", file_size_bytes=original_file_size, original_file_size_bytes=original_file_size, function_name="upload_file")
                 self.performance_logger.start_timer()
             except Exception as e:
                 current_app.logger.error(f"[UPLOAD] Validation failed: {e}")
@@ -97,7 +97,7 @@ class FileService:
                 # Get the compressed data
                 compressed_data = compressed_stream.read()
                 current_app.logger.info(f"[UPLOAD] File compressed: {len(compressed_data)} bytes")
-                self.performance_logger.stop_timer_and_log("compress", file_size_bytes=len(compressed_data), original_file_size_bytes=original_file_size, compressed_file_size_bytes=len(compressed_data))
+                self.performance_logger.stop_timer_and_log("compress", file_size_bytes=len(compressed_data), original_file_size_bytes=original_file_size, compressed_file_size_bytes=len(compressed_data), function_name="upload_file")
                 self.performance_logger.start_timer()
             except Exception as e:
                 current_app.logger.error(f"[UPLOAD] Compression failed: {e}", exc_info=True)
@@ -117,7 +117,7 @@ class FileService:
             try:
                 file_hash = hashlib.sha3_512(compressed_data).hexdigest()
                 current_app.logger.debug(f"[UPLOAD] Generated file hash: {file_hash[:8]}...")
-                self.performance_logger.stop_timer_and_log("hash", file_size_bytes=len(compressed_data), original_file_size_bytes=original_file_size, compressed_file_size_bytes=len(compressed_data))
+                self.performance_logger.stop_timer_and_log("hash", file_size_bytes=len(compressed_data), original_file_size_bytes=original_file_size, compressed_file_size_bytes=len(compressed_data), function_name="upload_file")
                 self.performance_logger.start_timer()
             except Exception as e:
                 current_app.logger.error(f"[UPLOAD] Error hashing compressed data: {e}")
@@ -134,7 +134,7 @@ class FileService:
                 storage_data = aes_nonce + encrypted_data
                 storage_stream = io.BytesIO(storage_data)
                 logger.info(f"[UPLOAD] File encrypted: {len(storage_data)} bytes")
-                self.performance_logger.stop_timer_and_log("encrypt", file_size_bytes=len(storage_data), original_file_size_bytes=original_file_size, compressed_file_size_bytes=len(compressed_data), encrypted_file_size_bytes=len(storage_data))
+                self.performance_logger.stop_timer_and_log("encrypt", file_size_bytes=len(storage_data), original_file_size_bytes=original_file_size, compressed_file_size_bytes=len(compressed_data), encrypted_file_size_bytes=len(storage_data), function_name="upload_file")
                 self.performance_logger.start_timer()
             except Exception as e:
                 logger.error(f"[UPLOAD] Encryption failed: {e}")
@@ -144,7 +144,7 @@ class FileService:
             try:
                 storage_id = self.storage.store(storage_stream, f"{user_id}_{filename}")
                 logger.info(f"[UPLOAD] File stored: {storage_id}")
-                self.performance_logger.stop_timer_and_log("store", file_size_bytes=len(storage_data), original_file_size_bytes=original_file_size, compressed_file_size_bytes=len(compressed_data), encrypted_file_size_bytes=len(storage_data))
+                self.performance_logger.stop_timer_and_log("store", file_size_bytes=len(storage_data), original_file_size_bytes=original_file_size, compressed_file_size_bytes=len(compressed_data), encrypted_file_size_bytes=len(storage_data), function_name="upload_file")
                 self.performance_logger.start_timer()
             except Exception as e:
                 logger.error(f"[UPLOAD] Storage failed: {e}")
@@ -167,7 +167,7 @@ class FileService:
                 db.session.add(file_record)
                 db.session.commit()
                 logger.info(f"[UPLOAD] Database record created: {file_record.id}")
-                self.performance_logger.stop_timer_and_log("database_record", original_file_size_bytes=original_file_size, compressed_file_size_bytes=len(compressed_data), encrypted_file_size_bytes=len(storage_data))
+                self.performance_logger.stop_timer_and_log("database_record", original_file_size_bytes=original_file_size, compressed_file_size_bytes=len(compressed_data), encrypted_file_size_bytes=len(storage_data), function_name="upload_file")
                 self.performance_logger.start_timer()
             except Exception as e:
                 logger.error(f"[UPLOAD] Database insert failed: {e}")
@@ -190,7 +190,7 @@ class FileService:
                     file_record.blockchain_txn_id = txn_id
                     db.session.commit()
                     logger.info(f"[UPLOAD] Blockchain logged: {txn_id}")
-                self.performance_logger.stop_timer_and_log("blockchain_log", original_file_size_bytes=original_file_size, compressed_file_size_bytes=len(compressed_data), encrypted_file_size_bytes=len(storage_data))
+                self.performance_logger.stop_timer_and_log("blockchain_log", original_file_size_bytes=original_file_size, compressed_file_size_bytes=len(compressed_data), encrypted_file_size_bytes=len(storage_data), function_name="upload_file")
                 self.performance_logger.start_timer()
             except Exception as e:
                 logger.error(f"[UPLOAD] Blockchain log failed: {e}")
@@ -208,7 +208,7 @@ class FileService:
                 )
                 db.session.add(audit_log)
                 db.session.commit()
-                self.performance_logger.stop_timer_and_log("audit_log", original_file_size_bytes=original_file_size, compressed_file_size_bytes=len(compressed_data), encrypted_file_size_bytes=len(storage_data))
+                self.performance_logger.stop_timer_and_log("audit_log", original_file_size_bytes=original_file_size, compressed_file_size_bytes=len(compressed_data), encrypted_file_size_bytes=len(storage_data), function_name="upload_file")
             except Exception as e:
                 logger.error(f"[UPLOAD] Audit log failed: {e}")
                 db.session.rollback()
@@ -248,6 +248,7 @@ class FileService:
         Returns:
             Decrypted file stream
         """
+        self.performance_logger.start_timer()
         try:
             # Get file record
             file_record = FileRecord.query.filter_by(
@@ -269,6 +270,8 @@ class FileService:
             
             # Retrieve encrypted file from storage
             encrypted_stream = self.storage.retrieve(file_record.storage_path)
+            self.performance_logger.stop_timer_and_log("retrieve_from_storage", original_file_size_bytes=file_record.size, function_name="download_file")
+            self.performance_logger.start_timer()
             
             # Extract nonce and encrypted data
             encrypted_stream.seek(0)
@@ -284,9 +287,12 @@ class FileService:
             compressed_stream = self.encryptor.decrypt_with_private_key(
                 encrypted_stream, private_key, file_record.kem_ciphertext, aes_nonce
             )
+            self.performance_logger.stop_timer_and_log("decrypt", original_file_size_bytes=file_record.size, function_name="download_file")
+            self.performance_logger.start_timer()
             
             # Decompress file
             decrypted_stream = self.compressor.decompress_stream(compressed_stream)
+            self.performance_logger.stop_timer_and_log("decompress", original_file_size_bytes=file_record.size, function_name="download_file")
             
             # Log download event
             audit_data = {
@@ -329,6 +335,7 @@ class FileService:
         Returns:
             True if successful
         """
+        self.performance_logger.start_timer()
         try:
             # Get file record
             file_record = FileRecord.query.filter_by(
@@ -338,6 +345,8 @@ class FileService:
             
             if not file_record:
                 raise ValueError("File not found")
+            self.performance_logger.stop_timer_and_log("get_file_record", original_file_size_bytes=file_record.size, function_name="delete_file")
+            self.performance_logger.start_timer()
             
             # Check permissions
             if file_record.user_id != user_id:
@@ -345,13 +354,19 @@ class FileService:
                 user = User.query.get(user_id)
                 if not user or user.role != "admin":
                     raise PermissionError("Access denied")
+            self.performance_logger.stop_timer_and_log("check_permissions", original_file_size_bytes=file_record.size, function_name="delete_file")
+            self.performance_logger.start_timer()
             
             # Soft delete
             file_record.deleted = True
             db.session.commit()
+            self.performance_logger.stop_timer_and_log("soft_delete", original_file_size_bytes=file_record.size, function_name="delete_file")
+            self.performance_logger.start_timer()
 
             # Physically delete the file from storage
             self.storage.delete(file_record.storage_path)
+            self.performance_logger.stop_timer_and_log("physical_delete", original_file_size_bytes=file_record.size, function_name="delete_file")
+            self.performance_logger.start_timer()
 
             # Log deletion event
             audit_data = {
@@ -361,6 +376,8 @@ class FileService:
             }
             
             txn_id = self.blockchain_logger.log_event("file_delete", audit_data)
+            self.performance_logger.stop_timer_and_log("blockchain_log_delete", original_file_size_bytes=file_record.size, function_name="delete_file")
+            self.performance_logger.start_timer()
             
             # Create audit log
             audit_log = AuditLog(
@@ -374,6 +391,7 @@ class FileService:
             
             db.session.add(audit_log)
             db.session.commit()
+            self.performance_logger.stop_timer_and_log("audit_log_delete", original_file_size_bytes=file_record.size, function_name="delete_file")
             
             current_app.logger.info(f"File deleted: {file_id}")
             return True
@@ -394,6 +412,7 @@ class FileService:
         Returns:
             File information dictionary or None
         """
+        self.performance_logger.start_timer()
         try:
             file_record = FileRecord.query.filter_by(
                 id=file_id,
@@ -401,15 +420,21 @@ class FileService:
             ).first()
             
             if not file_record:
+                self.performance_logger.stop_timer_and_log("get_file_info_not_found", function_name="get_file_info")
                 return None
+            self.performance_logger.stop_timer_and_log("get_file_record_info", original_file_size_bytes=file_record.size, function_name="get_file_info")
+            self.performance_logger.start_timer()
             
             # Check permissions
             if file_record.user_id != user_id:
                 from models import User
                 user = User.query.get(user_id)
                 if not user or user.role != "admin":
+                    self.performance_logger.stop_timer_and_log("get_file_info_permission_denied", function_name="get_file_info")
                     return None
+            self.performance_logger.stop_timer_and_log("check_permissions_info", original_file_size_bytes=file_record.size, function_name="get_file_info")
             
+            self.performance_logger.stop_timer_and_log("get_file_info_success", original_file_size_bytes=file_record.size, function_name="get_file_info")
             return {
                 "file_id": file_record.id,
                 "filename": file_record.original_filename,
@@ -420,11 +445,12 @@ class FileService:
                 "file_hash": file_record.file_hash,
                 "blockchain_txn_id": file_record.blockchain_txn_id,
                 "created_at": file_record.created_at.isoformat(),
-                "metadata": file_record.metadata
+                "metadata": file_record.file_metadata
             }
             
         except Exception as e:
             current_app.logger.error(f"Get file info failed: {e}")
+            self.performance_logger.stop_timer_and_log("get_file_info_error", function_name="get_file_info")
             return None
 
 # Global file service instance

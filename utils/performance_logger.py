@@ -16,24 +16,25 @@ class PerformanceLogger:
         """Initializes the CSV log file with headers if it doesn't exist."""
         if not os.path.exists(self.log_file_path):
             with open(self.log_file_path, 'w', newline='') as csvfile:
-                fieldnames = [
-                    "start_timestamp", "end_timestamp", "step", "execution_time_ms",
-                    "cpu_percent", "memory_usage_mb", "file_size_kb",
-                    "original_file_size_bytes", "compressed_file_size_bytes",
-                    "encrypted_file_size_bytes", "compression_ratio"
-                ]
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                writer.writeheader()
+                self.csv_writer = csv.writer(csvfile)
+                self.csv_writer.writerow([
+                    'start_timestamp', 'end_timestamp', 'step', 'execution_time_ms', 
+                    'cpu_percent', 'memory_usage_mb', 'file_size_kb', 
+                    'original_file_size_bytes', 'compressed_file_size_bytes', 
+                    'encrypted_file_size_bytes', 'encryption_overhead_bytes', 'compression_ratio', 'function_name'
+                ])
 
     def start_timer(self):
         """Starts the timer for measuring execution time and records the start timestamp."""
         self.start_time = time.perf_counter()
         self.start_timestamp = datetime.now().isoformat()
 
-    def stop_timer_and_log(self, step_name: str, file_size_bytes: Optional[int] = None,
-                           original_file_size_bytes: Optional[int] = None,
-                           compressed_file_size_bytes: Optional[int] = None,
+    def stop_timer_and_log(self, step: str, file_size_bytes: Optional[int] = None, 
+                           original_file_size_bytes: Optional[int] = None, 
+                           compressed_file_size_bytes: Optional[int] = None, 
                            encrypted_file_size_bytes: Optional[int] = None,
+                           function_name: Optional[str] = None,
+                           encryption_overhead_bytes: Optional[int] = None,
                            extra_info: Optional[Dict[str, Any]] = None):
         """
         Stops the timer, collects performance metrics, and logs them to the CSV file.
@@ -65,14 +66,16 @@ class PerformanceLogger:
         log_entry = {
             "start_timestamp": self.start_timestamp,
             "end_timestamp": end_timestamp,
-            "step": step_name,
-            "execution_time_ms": f"{execution_time_ms:.2f}",
-            "cpu_percent": f"{cpu_percent:.2f}",
-            "memory_usage_mb": f"{memory_usage_mb:.2f}",
+            "function_name": function_name,
+            "step": step,
+            "execution_time_ms": execution_time_ms,
+            "cpu_percent": cpu_percent,
+            "memory_usage_mb": memory_usage_mb,
             "file_size_kb": f"{file_size_kb:.2f}" if file_size_kb is not None else "",
             "original_file_size_bytes": original_file_size_bytes if original_file_size_bytes is not None else "",
             "compressed_file_size_bytes": compressed_file_size_bytes if compressed_file_size_bytes is not None else "",
             "encrypted_file_size_bytes": encrypted_file_size_bytes if encrypted_file_size_bytes is not None else "",
+            "encryption_overhead_bytes": encryption_overhead_bytes if encryption_overhead_bytes is not None else "",
             "compression_ratio": f"{compression_ratio:.2f}" if compression_ratio is not None else ""
         }
         if extra_info:
