@@ -133,6 +133,7 @@
         {% if messages %}
             <div class="container mt-3">
                 {% for category, message in messages %}
+                    {% if category not in ['access_token', 'refresh_token'] %}
                     <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
                         {% if category == 'error' %}
                             <i data-feather="alert-circle" class="me-2"></i>
@@ -146,6 +147,7 @@
                         {{ message }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
+                    {% endif %}
                 {% endfor %}
             </div>
         {% endif %}
@@ -229,5 +231,22 @@
     
     <!-- Block for additional scripts -->
     {% block scripts %}{% endblock %}
+
+    <!-- Script to handle flashed JWT tokens -->
+    <script>
+        // Access the flashed tokens
+        const accessToken = "{{ get_flashed_messages(category_filter=['access_token']) | first or '' }}";
+        const refreshToken = "{{ get_flashed_messages(category_filter=['refresh_token']) | first or '' }}";
+
+        if (accessToken) {
+            console.log("Saving access token to localStorage.");
+            localStorage.setItem('access_token', accessToken);
+        }
+
+        if (refreshToken) {
+            console.log("Saving refresh token to localStorage.");
+            localStorage.setItem('refresh_token', refreshToken);
+        }
+    </script>
 </body>
 </html>
