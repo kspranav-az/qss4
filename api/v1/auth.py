@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, redirect, url_for, render_template, flash
+from flask import Blueprint, request, jsonify, redirect, url_for, render_template, flash, session
 from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt_identity
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import check_password_hash
@@ -190,9 +190,8 @@ def login():
             # For web interface, use Flask-Login
             login_user(user, remember=True)
             # Store tokens in the session for API calls
-            from flask import session
-            session['access_token'] = tokens['access_token']
-            session['refresh_token'] = tokens['refresh_token']
+            flash(tokens['access_token'], 'access_token')
+            flash(tokens['refresh_token'], 'refresh_token')
             
             flash("Login successful!", 'success')
             next_page = request.args.get('next')
