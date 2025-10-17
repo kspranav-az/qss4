@@ -79,12 +79,22 @@ class AESGCMEncryptor(BaseEncryptor):
     def __init__(self):
         super().__init__()
         self.algorithm_name = "aes-256-gcm"
+
+    def _derive_nonce(self, key: bytes) -> bytes:
+        """Derive a 96-bit nonce from the encryption key using HKDF."""
+        hkdf = HKDF(
+            algorithm=hashes.SHA256(),
+            length=12,  # 96-bit nonce for AES-GCM
+            salt=None,
+            info=b'qss4-aes-gcm-nonce'
+        )
+        return hkdf.derive(key)
     
-    def encrypt_stream(self, input_stream: BinaryIO, key: bytes) -> Tuple[BinaryIO, bytes]:
+    def encrypt_stream(self, input_stream: BinaryIO, key: bytes) -> BinaryIO:
         """Encrypt stream using AES-GCM"""
         try:
-            # Generate nonce
-            nonce = os.urandom(12)  # 96-bit nonce for GCM
+            # Derive nonce from the key
+            nonce = self._derive_nonce(key)
             
             # Create cipher
             aesgcm = AESGCM(key)
@@ -100,14 +110,17 @@ class AESGCMEncryptor(BaseEncryptor):
             output_stream = io.BytesIO(ciphertext)
             output_stream.seek(0)
             
-            return output_stream, nonce
+            return output_stream
             
         except Exception as e:
             raise RuntimeError(f"AES-GCM encryption failed: {e}")
     
-    def decrypt_stream(self, encrypted_stream: BinaryIO, key: bytes, nonce: bytes) -> BinaryIO:
+    def decrypt_stream(self, encrypted_stream: BinaryIO, key: bytes) -> BinaryIO:
         """Decrypt stream using AES-GCM"""
         try:
+            # Derive nonce from the key
+            nonce = self._derive_nonce(key)
+
             # Create cipher
             aesgcm = AESGCM(key)
             
@@ -143,10 +156,10 @@ class KyberAESHybridEncryptor(HybridEncryptor):
         encryptor = AESGCMEncryptor()
         super().__init__(kem, encryptor)
     
-    def encrypt_with_public_key(self, input_stream: BinaryIO, public_key: bytes) -> Tuple[BinaryIO, bytes, bytes]:
+    def encrypt_with_public_key(self, input_stream: BinaryIO, public_key: bytes) -> Tuple[BinaryIO, bytes]:
         """
         Encrypt using Kyber + AES-GCM hybrid scheme
-        Returns (encrypted_stream, kem_ciphertext, aes_nonce)
+        Returns (encrypted_stream, kem_ciphertext)
         """
         try:
             # Step 1: Use Kyber to encapsulate a shared secret
@@ -162,19 +175,19 @@ class KyberAESHybridEncryptor(HybridEncryptor):
             aes_key = hkdf.derive(shared_secret)
             
             # Step 3: Encrypt data with AES-GCM
-            encrypted_stream, nonce = self.encryptor.encrypt_stream(input_stream, aes_key)
+            encrypted_stream = self.encryptor.encrypt_stream(input_stream, aes_key)
             
             # Clear sensitive data
             shared_secret = b'\x00' * len(shared_secret)
             aes_key = b'\x00' * len(aes_key)
             
-            return encrypted_stream, kem_ciphertext, nonce
+            return encrypted_stream, kem_ciphertext
             
         except Exception as e:
             raise RuntimeError(f"Hybrid encryption failed: {e}")
     
     def decrypt_with_private_key(self, encrypted_stream: BinaryIO, private_key: bytes, 
-                               kem_ciphertext: bytes, nonce: bytes) -> BinaryIO:
+                               kem_ciphertext: bytes) -> BinaryIO:
         """
         Decrypt using Kyber + AES-GCM hybrid scheme
         Returns decrypted_stream
@@ -193,7 +206,7 @@ class KyberAESHybridEncryptor(HybridEncryptor):
             aes_key = hkdf.derive(shared_secret)
             
             # Step 3: Decrypt data with AES-GCM
-            decrypted_stream = self.encryptor.decrypt_stream(encrypted_stream, aes_key, nonce)
+            decrypted_stream = self.encryptor.decrypt_stream(encrypted_stream, aes_key)
             
             # Clear sensitive data
             shared_secret = b'\x00' * len(shared_secret)

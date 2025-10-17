@@ -228,11 +228,11 @@ def test():
         test_stream = io.BytesIO(test_data)
         
         # Encrypt
-        encrypted_stream, kem_ciphertext, nonce = encryptor.encrypt_with_public_key(test_stream, public_key)
+        encrypted_stream, kem_ciphertext = encryptor.encrypt_with_public_key(test_stream, public_key)
         print(f"✅ Hybrid encryption successful")
         
         # Decrypt
-        decrypted_stream = encryptor.decrypt_with_private_key(encrypted_stream, private_key, kem_ciphertext, nonce)
+        decrypted_stream = encryptor.decrypt_with_private_key(encrypted_stream, private_key, kem_ciphertext)
         decrypted_data = decrypted_stream.read()
         print(f"✅ Hybrid decryption successful")
         

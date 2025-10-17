@@ -127,14 +127,13 @@ class FileService:
             try:
                 logger.debug("[UPLOAD] Starting file encryption")
                 public_key = key_manager.get_public_key()
-                encrypted_stream, kem_ciphertext, aes_nonce = self.encryptor.encrypt_with_public_key(
+                encrypted_stream, kem_ciphertext = self.encryptor.encrypt_with_public_key(
                     io.BytesIO(compressed_data), public_key
                 )
                 encrypted_data = encrypted_stream.read()
-                storage_data = aes_nonce + encrypted_data
-                storage_stream = io.BytesIO(storage_data)
-                logger.info(f"[UPLOAD] File encrypted: {len(storage_data)} bytes")
-                self.performance_logger.stop_timer_and_log("encrypt", file_size_bytes=len(storage_data), original_file_size_bytes=original_file_size, compressed_file_size_bytes=len(compressed_data), encrypted_file_size_bytes=len(storage_data), function_name="upload_file")
+                storage_stream = io.BytesIO(encrypted_data)
+                logger.info(f"[UPLOAD] File encrypted: {len(encrypted_data)} bytes")
+                self.performance_logger.stop_timer_and_log("encrypt", file_size_bytes=len(encrypted_data), original_file_size_bytes=original_file_size, compressed_file_size_bytes=len(compressed_data), encrypted_file_size_bytes=len(encrypted_data), function_name="upload_file")
                 self.performance_logger.start_timer()
             except Exception as e:
                 logger.error(f"[UPLOAD] Encryption failed: {e}")
@@ -273,19 +272,10 @@ class FileService:
             self.performance_logger.stop_timer_and_log("retrieve_from_storage", original_file_size_bytes=file_record.size, function_name="download_file")
             self.performance_logger.start_timer()
             
-            # Extract nonce and encrypted data
-            encrypted_stream.seek(0)
-            storage_data = encrypted_stream.read()
-            
-            aes_nonce = storage_data[:12]  # First 12 bytes are nonce
-            encrypted_data = storage_data[12:]  # Rest is encrypted data
-            
-            encrypted_stream = io.BytesIO(encrypted_data)
-            
             # Decrypt file
             private_key = key_manager.get_private_key()
             compressed_stream = self.encryptor.decrypt_with_private_key(
-                encrypted_stream, private_key, file_record.kem_ciphertext, aes_nonce
+                encrypted_stream, private_key, file_record.kem_ciphertext
             )
             self.performance_logger.stop_timer_and_log("decrypt", original_file_size_bytes=file_record.size, function_name="download_file")
             self.performance_logger.start_timer()
